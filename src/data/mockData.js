@@ -4,13 +4,18 @@ export const initialUserProfile = {
     current: 1420,
     savings: 3900
   },
+  savings_account: {
+    name: 'Everyday Saver',
+    institution: 'Barclays',
+    rate: 4.75
+  },
   linked_accounts: {
     natwest_isa: {
       name: 'NatWest Cash ISA',
       institution: 'NatWest',
       sort_code: '60-00-01',
       balance: 2920,
-      rate: 4.5
+      rate: 3.2
     }
   },
   income: 4500,

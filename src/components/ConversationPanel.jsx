@@ -28,7 +28,7 @@ const ProactiveNotification = ({ profile, onAccept, onDismiss }) => {
       </div>
       <p style={{ fontSize: '0.88rem', color: '#555', lineHeight: 1.5, marginBottom: '1rem' }}>
         You currently have <strong>£{idleBalance.toLocaleString()}</strong> idle in your Current Account.<br />
-        Move <strong>£{Math.round(idleBalance * 0.6).toLocaleString()}</strong> to your Everyday Saver earning <strong>3.8%</strong> AER?
+        Move <strong>£{Math.round(idleBalance * 0.6).toLocaleString()}</strong> to your Everyday Saver earning <strong>{profile.savings_account?.rate || 4.75}%</strong> AER?
       </p>
       <div style={{ display: 'flex', gap: '8px' }}>
         <button onClick={onAccept} style={{ flex: 1, padding: '10px', background: 'var(--brand-blue)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer' }}>Move Money</button>
@@ -84,6 +84,7 @@ export const ConversationPanel = ({ futureMode }) => {
   const [currentTrace, setCurrentTrace] = useState(null);
 
   const futureModeRef = useRef(futureMode);
+  const awaitingAccountSelectRef = useRef(null); // {complete: fn} — set when disambiguation card awaits a response
   const [showFutureBanner, setShowFutureBanner] = useState(false);
   useEffect(() => {
     futureModeRef.current = futureMode;
@@ -172,9 +173,18 @@ export const ConversationPanel = ({ futureMode }) => {
     if (!textToProcess.trim()) return;
     setShowProactive(false);
     clearTimeout(proactiveTimerRef.current);
-
-    // Collapse header on first message
     window.dispatchEvent(new CustomEvent('CHAT_STARTED'));
+
+    // Account selection intercept — today mode disambiguation response
+    if (awaitingAccountSelectRef.current) {
+      const { complete } = awaitingAccountSelectRef.current;
+      awaitingAccountSelectRef.current = null;
+      addMessage('user', textToProcess);
+      if (overrideInput === null) setInput('');
+      setIsTyping(true);
+      setTimeout(() => { complete(); setIsTyping(false); }, 1500);
+      return;
+    }
 
     addMessage('user', textToProcess);
     const intentData = detectIntent(textToProcess);
@@ -237,7 +247,7 @@ export const ConversationPanel = ({ futureMode }) => {
       { label: 'Scene 1 of 6 — Financial Awareness', queries: ['How much money can I spend this month?'], readTime: 18000 },
       { label: 'Scene 2 of 6 — Spending Insight', queries: ['Where does my money go each month?'], readTime: 18000 },
       { label: 'Scene 3 of 6 — Affordability Reasoning', queries: ['Can I afford a £900 holiday?'], readTime: 18000 },
-      { label: 'Scene 4 of 6 — Safe Transfer', queries: ['Move £600 from savings to current.'], readTime: 18000 },
+      { label: 'Scene 4 of 6 — Safe Transfer', queries: ['Move £600 from savings to current.'], readTime: 20000, accountSelect: true },
       { label: 'Scene 5 of 6 — Behavioural Intelligence', queries: null, readTime: 16000, proactive: true },
       { label: 'Scene 6 of 6 — Intelligent Support', queries: ['What is this £85 charge from Northline Services?'], readTime: 24000, multiStep: true },
     ];
@@ -367,6 +377,17 @@ export const ConversationPanel = ({ futureMode }) => {
                   await wait(800);
                   setIsTyping(false);
                   processInputRef.current('Chat with fraud specialist.');
+                } else if (scene.accountSelect) {
+                  if (futureModeRef.current) {
+                    // Future mode: AI selects source automatically — single query
+                    await typeText(scene.queries[0]);
+                  } else {
+                    // Today mode: ambiguous — disambiguation card appears, then user picks Barclays
+                    await typeText(scene.queries[0]);
+                    await wait(3500);
+                    await typeText('Barclays savings please.');
+                    await wait(3500);
+                  }
                 } else {
                   for (const query of scene.queries) {
                     if (siriHandoff) {
@@ -486,7 +507,7 @@ export const ConversationPanel = ({ futureMode }) => {
 
         addMessage('assistant',
           futureMode
-            ? `Computed in real-time across your Barclays and NatWest accounts: you have £${freshDiscretionary.toLocaleString()} available this month — with your NatWest ISA earning 4.5% AER and all committed spend factored in. Here's the full picture:`
+            ? `Computed in real-time across your Barclays and NatWest accounts: you have £${freshDiscretionary.toLocaleString()} available this month — with your NatWest ISA and all committed spend factored in. Here's the full picture:`
             : `Based on your income and outgoings, you have around £${freshDiscretionary.toLocaleString()} available to spend freely this month — after bills and your savings goal are accounted for. Here's the full breakdown:`,
           card
         );
@@ -495,36 +516,62 @@ export const ConversationPanel = ({ futureMode }) => {
 
       case 'transfer_money': {
         const { source_account, destination_account, amount } = intentData;
+        const barclaysRate = profile.savings_account?.rate || 4.75;
+        const natwestRate = profile.linked_accounts?.natwest_isa?.rate || 3.2;
+        const natwestISA = profile.linked_accounts?.natwest_isa;
 
-        // ── 2028 Mode: instant biometric execution ────────────────────────────
+        // ── 2028 Mode: AI selects optimal source account automatically ─────────
         if (futureMode) {
+          // Barclays Everyday Saver earns more → use NatWest ISA as source to preserve it
           executeTransfer(source_account, destination_account, amount);
+          const interestSaved = Math.round(amount * (barclaysRate - natwestRate) / 100);
           const trace = {
             confidence: 99,
             reasoning: [
               `User said: "${originalText}"`,
               `Resolved intent: transfer_money (confidence: 99%)`,
-              `Parsed: source=${source_account}, dest=${destination_account}, amount=£${amount}`,
+              `Evaluating source accounts for £${amount} transfer`,
+              `Barclays Everyday Saver: ${barclaysRate}% AER — highest yield, preserve`,
+              `NatWest Cash ISA: ${natwestRate}% AER — lower yield, use as source`,
+              `Rate optimisation: NatWest ISA selected — saves ~£${interestSaved}/yr in lost interest`,
               `2028 Mode: continuous biometric session active — no friction required`,
-              `Behavioural trust score: 98/100 (recognised device, normal velocity, known payee)`,
-              `Policy result: INSTANT EXECUTION — biometric consent confirmed`
+              `Policy result: INSTANT EXECUTION — optimal source confirmed`
             ],
-            policy: { amount, rule: 'Continuous biometric auth — friction waived', fraudRisk: 'Low', deviceTrust: 'Verified (Passkey)', velocityCheck: 'Pass', action: 'Executed instantly — no explicit confirmation required', actionColor: 'success' },
+            policy: { amount, rule: `Rate optimisation: NatWest ISA (${natwestRate}%) used, Barclays (${barclaysRate}%) preserved`, fraudRisk: 'Low', deviceTrust: 'Verified (Passkey)', velocityCheck: 'Pass', action: 'AI selected lowest-yield source — no user input needed', actionColor: 'success' },
             modelRouting: MODEL_ROUTING.transfer_2028,
-            outcome: { ok: true, verdict: 'Instant Transfer Executed', impact: `£${amount} moved without friction via persistent biometric identity.`, futureNote: '' }
+            outcome: { ok: true, verdict: 'Smart Transfer Executed', impact: `NatWest ISA used as source — Barclays Everyday Saver (${barclaysRate}% AER) fully preserved.`, futureNote: `AI evaluates all savings accounts by yield before every transfer, automatically routing from the lowest-rate source to maximise your returns. Continuous biometric auth removes all friction.` }
           };
           setCurrentTrace(trace);
           const card = (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', color: 'var(--success)' }}>
                 <CheckCircle size={22} />
-                <span style={{ fontWeight: '600', fontSize: '1.05rem' }}>Instant Transfer</span>
+                <span style={{ fontWeight: '600', fontSize: '1.05rem' }}>Smart Transfer</span>
                 <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: '700', background: 'linear-gradient(90deg, #7c3aed, #00AEEF)', color: 'white', padding: '2px 8px', borderRadius: '100px' }}>2028</span>
+              </div>
+              <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.18)', borderRadius: '12px', padding: '12px 14px', marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>AI Rate Optimisation</div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ flex: 1, background: 'rgba(124,58,237,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
+                    <div style={{ fontSize: '0.65rem', color: '#9c6fef', marginBottom: '2px' }}>NatWest Cash ISA</div>
+                    <div style={{ fontWeight: '700', color: '#7c3aed', fontSize: '0.9rem' }}>{natwestRate}% AER</div>
+                    <div style={{ fontSize: '0.62rem', color: '#a78bfa', marginTop: '2px' }}>Used for transfer ✓</div>
+                  </div>
+                  <div style={{ fontSize: '1rem', color: '#9c6fef' }}>→</div>
+                  <div style={{ flex: 1, background: 'rgba(0,57,93,0.08)', borderRadius: '8px', padding: '8px 10px' }}>
+                    <div style={{ fontSize: '0.65rem', color: '#00395D', marginBottom: '2px' }}>Barclays Everyday Saver</div>
+                    <div style={{ fontWeight: '700', color: 'var(--brand-blue)', fontSize: '0.9rem' }}>{barclaysRate}% AER</div>
+                    <div style={{ fontSize: '0.62rem', color: '#00AEEF', marginTop: '2px' }}>Preserved ↗</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontStyle: 'italic' }}>
+                  ~£{interestSaved}/yr extra interest retained by keeping Barclays savings intact
+                </div>
               </div>
               <div style={{ background: 'var(--bg-primary)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1rem' }}>
                 <p style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>From</span>
-                  <span style={{ textTransform: 'capitalize', fontWeight: '600', color: 'var(--brand-blue)' }}>{source_account}</span>
+                  <span style={{ fontWeight: '600', color: '#7c3aed' }}>NatWest Cash ISA</span>
                 </p>
                 <p style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>To</span>
@@ -541,93 +588,141 @@ export const ConversationPanel = ({ futureMode }) => {
               </div>
             </div>
           );
-          addMessage('assistant', `Done. £${amount} moved from ${source_account} to ${destination_account} — authorised instantly via your biometric session.`, card);
+          addMessage('assistant', `Done. I've taken the £${amount} from your NatWest Cash ISA (${natwestRate}% AER) instead of your Barclays Everyday Saver — your Barclays savings earn ${barclaysRate}% AER, so it's better value to keep those working for you. Authorised via your biometric session.`, card);
           break;
         }
 
-        // ── Today Mode: policy engine with confirmation step ──────────────────
-        const policyResult = transferMoney(source_account, destination_account, amount);
-        const trace = {
-          confidence: 96,
-          reasoning: [
-            `User said: "${originalText}"`,
-            `Resolved intent: transfer_money (confidence: 96%)`,
-            `Parsed: source=${source_account}, dest=${destination_account}, amount=£${amount}`,
-            `Fraud scoring: Low (no velocity anomaly, trusted device)`,
-            `Policy evaluation: amount=${amount} vs threshold=500`,
-            policyResult.status === 'approved'
-              ? 'Policy result: APPROVED — executing immediately'
-              : 'Policy result: CONFIRMATION REQUIRED — presenting auth card'
-          ],
-          policy: {
-            amount,
-            rule: amount > 500 ? 'Transfers > £500 require confirmation' : 'Under threshold, auto-approved',
-            fraudRisk: 'Low',
-            deviceTrust: 'High',
-            velocityCheck: 'Pass',
-            action: policyResult.status === 'approved' ? 'Auto-approved by policy engine' : 'User authorisation required',
-            actionColor: policyResult.status === 'approved' ? 'success' : 'warning'
-          },
-          outcome: {
-            ok: policyResult.status === 'approved',
-            verdict: policyResult.status === 'approved' ? 'Transfer Executed' : 'Authorisation Required',
-            impact: policyResult.reason,
-            futureNote: 'On-device Face ID combined with behavioural biometrics (typing cadence, device location, velocity pattern) creates a persistent zero-friction session — intent recognised and executed in one step, no confirmation tap required.'
+        // ── Today Mode: account disambiguation ────────────────────────────────
+        // source_account is 'savings' — user has two savings accounts, ask which one
+        const completeTodayTransfer = (chosenSource) => {
+          const displayName = chosenSource === 'savings' ? `Barclays Everyday Saver` : (natwestISA?.name || 'NatWest ISA');
+          const policyResult = transferMoney(chosenSource, destination_account, amount);
+          const traceInner = {
+            confidence: 96,
+            reasoning: [
+              `User selected: ${displayName}`,
+              `Resolved intent: transfer_money (account confirmed)`,
+              `Source: ${displayName}, Dest: ${destination_account}, Amount: £${amount}`,
+              `Fraud scoring: Low (no velocity anomaly, trusted device)`,
+              `Policy evaluation: amount=${amount} vs threshold=500`,
+              policyResult.status === 'approved' ? 'Policy result: APPROVED — executing immediately' : 'Policy result: CONFIRMATION REQUIRED — presenting auth card'
+            ],
+            policy: {
+              amount,
+              rule: amount > 500 ? 'Transfers > £500 require confirmation' : 'Under threshold, auto-approved',
+              fraudRisk: 'Low', deviceTrust: 'High', velocityCheck: 'Pass',
+              action: policyResult.status === 'approved' ? 'Auto-approved by policy engine' : 'User authorisation required',
+              actionColor: policyResult.status === 'approved' ? 'success' : 'warning'
+            },
+            outcome: {
+              ok: policyResult.status === 'approved',
+              verdict: policyResult.status === 'approved' ? 'Transfer Executed' : 'Authorisation Required',
+              impact: policyResult.reason,
+              futureNote: `AI rate optimisation automatically picks the lowest-yield account as source (NatWest ISA at ${natwestRate}% AER), preserving your Barclays savings at ${barclaysRate}% AER. Continuous biometric auth removes the confirmation step entirely.`
+            }
+          };
+          setCurrentTrace(traceInner);
+          const transferCard = (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', color: policyResult.status === 'approved' ? 'var(--success)' : 'var(--warning)' }}>
+                {policyResult.status === 'approved' ? <CheckCircle size={22} /> : <AlertTriangle size={22} />}
+                <span style={{ fontWeight: '600', fontSize: '1.05rem' }}>
+                  {policyResult.status === 'approved' ? 'Transfer Sent' : policyResult.status === 'confirmation_required' ? 'Authorisation Required' : 'Transfer Declined'}
+                </span>
+              </div>
+              <div style={{ background: 'var(--bg-primary)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.25rem' }}>
+                <p style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>From</span>
+                  <span style={{ fontWeight: '600', color: 'var(--brand-blue)' }}>{displayName}</span>
+                </p>
+                <p style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>To</span>
+                  <span style={{ textTransform: 'capitalize', fontWeight: '600', color: 'var(--brand-blue)' }}>{destination_account}</span>
+                </p>
+                <div style={{ height: '1px', background: 'rgba(0,0,0,0.06)', margin: '1rem 0' }} />
+                <p style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>Amount</span>
+                  <span style={{ fontWeight: '700', fontSize: '1.4rem', color: 'var(--brand-blue)' }}>£{amount}</span>
+                </p>
+              </div>
+              {policyResult.status === 'confirmation_required' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <button
+                    onClick={() => {
+                      executeTransfer(chosenSource, destination_account, amount);
+                      addMessage('user', 'Confirm transfer.');
+                      setIsTyping(true);
+                      setTimeout(() => { addMessage('assistant', `Confirmed. £${amount} has been moved from your ${displayName} to your ${destination_account} account.`); setIsTyping(false); }, 1000);
+                    }}
+                    style={{ width: '100%', padding: '14px', background: 'var(--brand-blue)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+                  >
+                    Approve £{amount}<ChevronRight size={18} />
+                  </button>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>{policyResult.reason}</p>
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Policy: {policyResult.reason}</p>
+              )}
+            </div>
+          );
+          if (policyResult.status === 'approved') {
+            addMessage('assistant', `All sorted. I've transferred £${amount} from your ${displayName} to your ${destination_account} account.`, transferCard);
+          } else if (policyResult.status === 'confirmation_required') {
+            addMessage('assistant', `For your security, transfers over £500 require your approval. Please confirm the details below.`, transferCard);
+          } else {
+            addMessage('assistant', `I could not complete this transfer.`, transferCard);
           }
         };
-        setCurrentTrace(trace);
 
-        const card = (
+        // Set up intercept so the next message (autopilot or user) completes the transfer
+        awaitingAccountSelectRef.current = { complete: () => completeTodayTransfer('savings') };
+
+        const disambigCard = (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', color: policyResult.status === 'approved' ? 'var(--success)' : 'var(--warning)' }}>
-              {policyResult.status === 'approved' ? <CheckCircle size={22} /> : <AlertTriangle size={22} />}
-              <span style={{ fontWeight: '600', fontSize: '1.05rem' }}>
-                {policyResult.status === 'approved' ? 'Transfer Sent' : policyResult.status === 'confirmation_required' ? 'Authorization Required' : 'Transfer Declined'}
-              </span>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
+              You have savings in two accounts. Which would you like to move <strong>£{amount}</strong> from?
             </div>
-            <div style={{ background: 'var(--bg-primary)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.25rem' }}>
-              <p style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>From</span>
-                <span style={{ textTransform: 'capitalize', fontWeight: '600', color: 'var(--brand-blue)' }}>{source_account}</span>
-              </p>
-              <p style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>To</span>
-                <span style={{ textTransform: 'capitalize', fontWeight: '600', color: 'var(--brand-blue)' }}>{destination_account}</span>
-              </p>
-              <div style={{ height: '1px', background: 'rgba(0,0,0,0.06)', margin: '1rem 0' }} />
-              <p style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>Amount</span>
-                <span style={{ fontWeight: '700', fontSize: '1.4rem', color: 'var(--brand-blue)' }}>£{amount}</span>
-              </p>
-            </div>
-            {policyResult.status === 'confirmation_required' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <button
-                  onClick={() => {
-                    executeTransfer(source_account, destination_account, amount);
-                    addMessage('user', 'Confirm transfer.');
-                    setIsTyping(true);
-                    setTimeout(() => { addMessage('assistant', `Confirmed. £${amount} has been securely moved from your ${source_account} to your ${destination_account} account.`); setIsTyping(false); }, 1000);
-                  }}
-                  style={{ width: '100%', padding: '14px', background: 'var(--brand-blue)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
-                >
-                  Approve £{amount}<ChevronRight size={18} />
-                </button>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>{policyResult.reason}</p>
+            <div
+              onClick={() => {
+                awaitingAccountSelectRef.current = null;
+                addMessage('user', 'Barclays savings please.');
+                setIsTyping(true);
+                setTimeout(() => { completeTodayTransfer('savings'); setIsTyping(false); }, 1500);
+              }}
+              style={{ background: 'var(--bg-primary)', border: '1px solid var(--card-border)', borderRadius: '12px', padding: '14px', marginBottom: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <div>
+                <div style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: '3px' }}>Barclays Everyday Saver</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--brand-cyan)', fontWeight: '600' }}>{barclaysRate}% AER</div>
               </div>
-            ) : (
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Policy: {policyResult.reason}</p>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '2px' }}>£{profile.accounts.savings.toLocaleString()}</div>
+                <ChevronRight size={15} color="#ccc" />
+              </div>
+            </div>
+            {natwestISA && (
+              <div
+                onClick={() => {
+                  awaitingAccountSelectRef.current = null;
+                  addMessage('user', 'NatWest ISA please.');
+                  setIsTyping(true);
+                  setTimeout(() => { completeTodayTransfer('natwest_isa'); setIsTyping(false); }, 1500);
+                }}
+                style={{ background: 'var(--bg-primary)', border: '1px solid var(--card-border)', borderRadius: '12px', padding: '14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: '3px' }}>{natwestISA.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>{natwestISA.rate}% AER</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '2px' }}>£{natwestISA.balance.toLocaleString()}</div>
+                  <ChevronRight size={15} color="#ccc" />
+                </div>
+              </div>
             )}
           </div>
         );
-
-        if (policyResult.status === 'approved') {
-          addMessage('assistant', `All sorted. I've transferred £${amount} from your ${source_account} to your ${destination_account} account.`, card);
-        } else if (policyResult.status === 'confirmation_required') {
-          addMessage('assistant', `For your security, transfers over £500 require your approval. Please review the details to proceed.`, card);
-        } else {
-          addMessage('assistant', `I could not complete this transfer.`, card);
-        }
+        addMessage('assistant', `You have savings in two accounts. Which would you like to move the £${amount} from?`, disambigCard);
         break;
       }
 
@@ -820,33 +915,43 @@ export const ConversationPanel = ({ futureMode }) => {
       case 'support_dispute': {
         const trace = {
           confidence: 99,
-          reasoning: [
+          reasoning: futureMode ? [
+            `User said: "${originalText}"`,
+            `Resolved intent: support_dispute (confidence: 99%)`,
+            `Context attached: Northline Services, £85.00`,
+            `Policy: Unrecognised online charges — auto-dispute protocol activated`,
+            `Action: Freeze payments, open dispute, initiate AI-to-AI resolution`,
+            `Contacting Northline merchant API with evidence package...`,
+            `AI negotiation in progress — estimated 2 min to resolution`
+          ] : [
             `User said: "${originalText}"`,
             `Resolved intent: support_dispute (confidence: 99%)`,
             `Context attached: Northline Services, £85.00`,
             `Policy: Unrecognised online charges require immediate merchant block`,
             `Action: Freeze payments, open dispute case`,
-            `Generate support handoff package`
+            `Note: Manual review required — advisor will need additional transaction details`
           ],
           policy: {
-            amount: 85, rule: 'Unrecognised transaction reported', fraudRisk: 'Medium', deviceTrust: 'High', velocityCheck: 'Pass', action: 'Merchant blocked, dispute opened auto-approved', actionColor: 'warning'
+            amount: 85, rule: 'Unrecognised transaction reported', fraudRisk: 'Medium', deviceTrust: 'High', velocityCheck: 'Pass',
+            action: futureMode ? 'Merchant blocked, dispute opened, AI-to-AI resolution initiated' : 'Merchant blocked, dispute opened — manual review pending',
+            actionColor: 'warning'
           },
           modelRouting: futureMode ? MODEL_ROUTING.support_dispute : undefined,
           outcome: {
             ok: true, verdict: 'Dispute Initiated',
-            impact: 'Merchant blocked. Funds frozen pending review.',
-            futureNote: 'AI-to-AI resolution: Barclays\' dispute agent initiates a protocol with Northline\'s merchant API, presents the case evidence, and negotiates the refund — typically resolved in under 2 minutes, no human intervention required.'
+            impact: futureMode ? 'AI-to-AI negotiation in progress — no user action needed.' : 'Merchant blocked. Manual review required.',
+            futureNote: futureMode ? 'Barclays\' dispute agent contacts Northline\'s merchant API directly, presents evidence, and negotiates the refund — typically resolved in under 2 minutes, no human needed.' : ''
           }
         };
         setCurrentTrace(trace);
 
-        const card = (
+        const card = futureMode ? (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', color: 'var(--success)' }}>
               <CheckCircle size={22} />
               <span style={{ fontWeight: '600', fontSize: '1.05rem' }}>Dispute Opened</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: '700', background: 'linear-gradient(90deg, #7c3aed, #00AEEF)', color: 'white', padding: '2px 8px', borderRadius: '100px' }}>2028</span>
             </div>
-            
             <div style={{ background: 'var(--bg-primary)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Merchant</span>
@@ -861,93 +966,170 @@ export const ConversationPanel = ({ futureMode }) => {
                 <span style={{ fontWeight: '600', color: 'var(--warning)' }}>Under Investigation</span>
               </div>
             </div>
-
-            <div style={{ border: '1px solid var(--divider)', borderRadius: '12px', padding: '1rem', marginBottom: '1.25rem' }}>
-              <h5 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Automated Actions Taken</h5>
+            <div style={{ border: '1px solid var(--divider)', borderRadius: '12px', padding: '1rem', marginBottom: '1rem' }}>
+              <h5 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Automated Actions</h5>
+              {['Merchant blocked', 'Dispute case opened (#FR-2839)', 'Account monitoring enhanced', 'AI-to-AI negotiation initiated'].map(a => (
+                <div key={a} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  <CheckCircle size={14} color="var(--success)" /> {a}
+                </div>
+              ))}
+            </div>
+            <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '10px', padding: '11px 13px', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', flexShrink: 0, animation: 'pulse 1.5s infinite' }} />
+                <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#7c3aed' }}>AI resolution in progress</span>
+              </div>
+              <div style={{ fontSize: '0.68rem', color: '#9c6fef', lineHeight: 1.5 }}>
+                Contacting Northline merchant system · Presenting dispute evidence · Negotiating refund
+              </div>
+            </div>
+            <button onClick={() => processInput('Chat with fraud specialist.')} style={{ width: '100%', padding: '12px', background: 'var(--brand-blue)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              Chat with specialist to confirm <ChevronRight size={16} />
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', color: 'var(--success)' }}>
+              <CheckCircle size={22} />
+              <span style={{ fontWeight: '600', fontSize: '1.05rem' }}>Dispute Opened</span>
+            </div>
+            <div style={{ background: 'var(--bg-primary)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Merchant</span>
+                <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Northline Services</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Amount</span>
+                <span style={{ fontWeight: '600', color: '#ef5350' }}>£85.00</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Status</span>
+                <span style={{ fontWeight: '600', color: 'var(--warning)' }}>Under Investigation</span>
+              </div>
+            </div>
+            <div style={{ border: '1px solid var(--divider)', borderRadius: '12px', padding: '1rem', marginBottom: '1rem' }}>
+              <h5 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Actions Taken</h5>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '6px' }}>
-                <CheckCircle size={14} color="var(--success)" /> Merchant blocked
+                <CheckCircle size={14} color="var(--success)" /> Merchant payments blocked
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '6px' }}>
                 <CheckCircle size={14} color="var(--success)" /> Dispute case opened (#FR-2839)
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                <CheckCircle size={14} color="var(--success)" /> Account monitoring enhanced
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#f59e0b' }}>
+                <AlertTriangle size={14} color="#f59e0b" /> Manual review required
               </div>
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' }}>
-              <button onClick={() => processInput('Chat with fraud specialist.')} style={{ padding: '12px', background: 'var(--brand-blue)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                Chat with a fraud specialist <ChevronRight size={16} />
-              </button>
-              <button style={{ padding: '12px', background: 'transparent', color: 'var(--brand-blue)', border: '1px solid var(--divider)', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer' }}>Call me now</button>
-              <button style={{ padding: '12px', background: 'transparent', color: 'var(--text-secondary)', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer' }}>Schedule a call for later</button>
+            <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '10px', padding: '10px 13px', marginBottom: '1rem', fontSize: '0.78rem', color: '#92400e', lineHeight: 1.5 }}>
+              Please have your case reference ready when speaking with our team: <strong>#FR-2839</strong>
             </div>
+            <button onClick={() => processInput('Chat with fraud specialist.')} style={{ width: '100%', padding: '12px', background: 'var(--brand-blue)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              Connect to fraud advisor <ChevronRight size={16} />
+            </button>
           </div>
         );
 
-        addMessage('assistant', `Understood. I've temporarily frozen payments to this merchant to prevent further charges, and I've opened a formal dispute for the £85 transaction.`, card);
+        addMessage('assistant',
+          futureMode
+            ? `Understood. Merchant blocked and dispute opened — I've also initiated AI-to-AI negotiation with Northline's merchant system. This typically resolves in under 2 minutes without any further action from you.`
+            : `Understood. I've blocked payments to this merchant and opened a formal dispute (Ref: #FR-2839). A member of our fraud team will need to review the details with you.`,
+          card);
         break;
       }
 
       case 'escalate_to_human': {
         const trace = {
           confidence: 100,
-          reasoning: [
+          reasoning: futureMode ? [
             `User requested: "${originalText}"`,
             `Resolved intent: escalate_to_human`,
-            `Preparing Context Package for Human agent...`,
-            `Included: Active dispute #FR-2839 (Northline Services £85)`,
-            `Included: Account context (Balances, Recent Auth IP, Device ID)`,
-            `Included: Fraud Risk Score (12 - Low)`,
-            `Routing to Available Fraud Specialist`
+            `Compiling rich context package for Sarah (Fraud Specialist)...`,
+            `Included: Dispute #FR-2839 (Northline, £85) + full evidence package`,
+            `Included: Full transaction history, account context, device ID`,
+            `Included: Fraud Risk Score (12 — Low), Merchant risk profile`,
+            `Included: AI resolution status — provisional refund agreed`,
+            `Routing to Sarah — context pre-loaded, no re-capture needed`
+          ] : [
+            `User requested: "${originalText}"`,
+            `Resolved intent: escalate_to_human`,
+            `Routing to available fraud specialist...`,
+            `Passed: Case reference #FR-2839`,
+            `Note: Transaction details, account history not pre-populated`,
+            `Advisor will need to capture details from customer`
           ],
-          policy: { rule: 'Human escalation requested', action: 'Context transferred to live agent pool', fraudRisk: 'Monitoring', deviceTrust: 'High', velocityCheck: 'Pass', actionColor: 'success' },
+          policy: { rule: 'Human escalation requested', action: futureMode ? 'Full context package transferred to specialist' : 'Case reference passed — advisor to gather details', fraudRisk: 'Monitoring', deviceTrust: 'High', velocityCheck: 'Pass', actionColor: 'success' },
           modelRouting: futureMode ? MODEL_ROUTING.escalate_human : undefined,
-          outcome: { ok: true, verdict: 'Agent Connect', impact: 'User connected to Sarah (Fraud Team) with full digital context.', futureNote: 'The AI maintains your full conversation thread, dispute metadata, and risk profile as structured context — passed to Sarah as a co-pilot brief. She has everything before saying hello; you never repeat yourself.' }
+          outcome: {
+            ok: true, verdict: futureMode ? 'Rich Context Handoff' : 'Advisor Connected',
+            impact: futureMode ? 'Sarah has full case context + AI resolution status. No re-capture needed.' : 'Connected to Sarah. Advisor will need to ask clarifying questions.',
+            futureNote: futureMode ? 'The AI maintains the full conversation thread, dispute metadata, AI negotiation status, and risk profile as a structured co-pilot brief — Sarah has everything before she says hello. You never repeat yourself.' : ''
+          }
         };
         setCurrentTrace(trace);
 
-        const contextCard = (
+        const contextCard = futureMode ? (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--brand-cyan)' }}>
               <Sparkles size={18} />
               <span style={{ fontWeight: '700', fontSize: '0.9rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Context Transferred</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.65rem', fontWeight: '700', background: 'linear-gradient(90deg, #7c3aed, #00AEEF)', color: 'white', padding: '2px 8px', borderRadius: '100px' }}>2028</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ background: 'var(--bg-primary)', padding: '10px', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                <span style={{ color: 'var(--success)', marginRight: '4px' }}>✓</span> Dispute Details
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+              {['Dispute: Northline £85', 'Full Account Context', 'Transaction History', 'Fraud Score: 12 (Low)', 'Merchant Risk Profile', 'AI Status: Refund agreed'].map(item => (
+                <div key={item} style={{ background: 'var(--bg-primary)', padding: '9px 10px', borderRadius: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  <span style={{ color: 'var(--success)', marginRight: '4px' }}>✓</span> {item}
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Sarah has everything — no questions needed.</div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+              <span style={{ fontWeight: '700', fontSize: '0.9rem', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Connecting to Advisor</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+              <div style={{ background: 'var(--bg-primary)', padding: '9px 10px', borderRadius: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--success)', marginRight: '4px' }}>✓</span> Case Reference
               </div>
-              <div style={{ background: 'var(--bg-primary)', padding: '10px', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                <span style={{ color: 'var(--success)', marginRight: '4px' }}>✓</span> Account Context
+              <div style={{ background: 'rgba(245,158,11,0.06)', padding: '9px 10px', borderRadius: '8px', fontSize: '0.75rem', color: '#92400e' }}>
+                <span style={{ color: '#f59e0b', marginRight: '4px' }}>!</span> Transaction Details
               </div>
-              <div style={{ background: 'var(--bg-primary)', padding: '10px', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                <span style={{ color: 'var(--success)', marginRight: '4px' }}>✓</span> Fraud Risk Score
+              <div style={{ background: 'rgba(245,158,11,0.06)', padding: '9px 10px', borderRadius: '8px', fontSize: '0.75rem', color: '#92400e' }}>
+                <span style={{ color: '#f59e0b', marginRight: '4px' }}>!</span> Account History
               </div>
-              <div style={{ background: 'var(--bg-primary)', padding: '10px', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                <span style={{ color: 'var(--success)', marginRight: '4px' }}>✓</span> Merchant History
+              <div style={{ background: 'rgba(245,158,11,0.06)', padding: '9px 10px', borderRadius: '8px', fontSize: '0.75rem', color: '#92400e' }}>
+                <span style={{ color: '#f59e0b', marginRight: '4px' }}>!</span> Merchant Profile
               </div>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+              The advisor will need to ask you some questions to gather the missing details.
             </div>
           </div>
         );
 
-        addMessage('assistant', `Transferring you to a specialist now. They already have the details of this £85 charge so you won't need to repeat yourself.`, contextCard);
+        addMessage('assistant',
+          futureMode
+            ? `Connecting you to Sarah now — she already has your full case, the dispute evidence, and the AI has secured a provisional refund. She just needs your confirmation to finalise it.`
+            : `Connecting you to a fraud advisor now. Please have your case reference ready: #FR-2839.`,
+          contextCard);
 
-        // Simulate human joining
         setTimeout(() => {
           const humanCard = (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ff7c00', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>S</div>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ff7c00', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', flexShrink: 0 }}>S</div>
               <div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Sarah • Fraud Specialist</div>
-                <div style={{ background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '4px 16px 16px 16px', border: '1px solid var(--card-border)', boxShadow: 'var(--card-shadow)', color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: 1.5 }}>
-                  Hi James, I can see the £85 Northline Services charge you're disputing. I've already got the transaction details and the action history from the assistant, so we can jump straight in.
+                <div style={{ background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '4px 16px 16px 16px', border: '1px solid var(--card-border)', boxShadow: 'var(--card-shadow)', color: 'var(--text-primary)', fontSize: '0.9rem', lineHeight: 1.55 }}>
+                  {futureMode
+                    ? `Hi James, the AI has already done the heavy lifting — I can see the £85 Northline dispute and a provisional refund has been agreed. Just say the word and I'll finalise it right now. No forms, no hold music.`
+                    : `Hi James, I've been passed your case reference #FR-2839. To investigate this charge, I'll need to ask you a few questions — could you confirm the merchant name, the transaction date, and the exact amount you're disputing?`}
                 </div>
               </div>
             </div>
           );
           setMessages(prev => [...prev, { id: Date.now(), role: 'system_human', card: humanCard }]);
         }, 1800);
-        
+
         break;
       }
 
@@ -964,7 +1146,8 @@ export const ConversationPanel = ({ futureMode }) => {
     setIsTyping(true);
     setTimeout(() => {
       executeTransfer('current', 'savings', moveAmount);
-      addMessage('assistant', `Done! I've moved £${moveAmount.toLocaleString()} to your Everyday Saver. At 3.8% AER, that's an extra £${Math.round(moveAmount * 0.038).toLocaleString()} per year in interest.`);
+      const savRate = profile.savings_account?.rate || 4.75;
+      addMessage('assistant', `Done! I've moved £${moveAmount.toLocaleString()} to your Everyday Saver. At ${savRate}% AER, that's an extra £${Math.round(moveAmount * savRate / 100).toLocaleString()} per year in interest.`);
       setIsTyping(false);
     }, 1200);
   };

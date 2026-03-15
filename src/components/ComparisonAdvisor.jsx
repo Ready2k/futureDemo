@@ -85,25 +85,25 @@ const SCENES = [
   {
     phase: 4,
     scene: 'Safe Transfer',
-    heading: 'Manual Approval → Zero Friction',
+    heading: 'Manual Selection → Smart Routing',
     subheading: '"Move £600 from savings to current"',
     today: {
       points: [
-        'Policy engine fires, holds transfer for review',
-        'Explicit confirmation step required',
-        'Friction is intentional — a safety feature',
-        'User must approve before execution',
+        'Two savings accounts detected — user must choose',
+        'Barclays Everyday Saver (4.75% AER) shown alongside NatWest ISA (3.2%)',
+        'No yield reasoning — user picks manually',
+        'Policy confirmation required for transfers over £500',
       ],
     },
     future: {
       points: [
-        'Continuous biometric session already active',
-        'Policy checks run silently in background',
-        'Identity continuously verified — no prompt needed',
-        'Instant execution with full audit trail',
+        'AI evaluates all accounts by yield automatically',
+        'NatWest ISA (3.2% AER) selected as source',
+        'Barclays savings (4.75% AER) fully preserved',
+        'Continuous biometric auth: instant execution, no tap',
       ],
     },
-    insight: "Zero friction doesn't mean zero safety. In 2028, guardrails are still present — they're invisible because trust has been established continuously.",
+    insight: "Every transfer is an optimisation opportunity. In 2028 the AI picks the lowest-yield source — your money always works as hard as possible, silently.",
   },
   {
     phase: 5,
@@ -131,25 +131,25 @@ const SCENES = [
   {
     phase: 6,
     scene: 'Intelligent Support',
-    heading: 'Reactive → Predictive Prevention',
+    heading: 'Manual Capture → Rich Handoff',
     subheading: 'Unknown charge on account',
     today: {
       points: [
-        'Multi-step: identify → dispute → block → escalate',
-        'Each step requires explicit user action',
-        'Human specialist handoff for complex cases',
-        'Resolution takes minutes to hours',
+        'Dispute opened — only case reference passed to advisor',
+        'Transaction details, account history not pre-loaded',
+        'Sarah must ask clarifying questions to proceed',
+        'Customer repeats information already shared with AI',
       ],
     },
     future: {
       points: [
-        'Suspicious charges flagged before confirmed',
-        'Automated resolution handles 80% of cases',
-        'Merchant block applied preemptively',
-        'Human specialist reserved for true exceptions',
+        'AI initiates negotiation with merchant system directly',
+        'Full context package: dispute, history, risk score, evidence',
+        'AI secures provisional refund before Sarah joins',
+        'Sarah has everything — confirms with one message, no re-capture',
       ],
     },
-    insight: 'The best support interaction is one that never needs to happen. Predictive prevention eliminates the category entirely.',
+    insight: "Context continuity is the hidden cost of today's support. In 2028, the AI carries the full thread — the human expert just makes the final call.",
   },
 ];
 
