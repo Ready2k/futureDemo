@@ -176,7 +176,7 @@ export function ComparisonAdvisor({ phase }) {
       }}>
         <span style={{
           fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.18em',
-          color: '#333', textTransform: 'uppercase',
+          color: '#666', textTransform: 'uppercase',
         }}>
           Strategy Advisor
         </span>
@@ -214,7 +214,7 @@ export function ComparisonAdvisor({ phase }) {
               {data.heading}
             </div>
             {data.subheading && (
-              <div style={{ fontSize: '0.68rem', color: '#555', fontStyle: 'italic' }}>
+              <div style={{ fontSize: '0.68rem', color: '#888', fontStyle: 'italic' }}>
                 {data.subheading}
               </div>
             )}
@@ -223,7 +223,7 @@ export function ComparisonAdvisor({ phase }) {
           {/* Intro text (idle state) */}
           {data.intro && (
             <div style={{
-              fontSize: '0.74rem', color: '#555', lineHeight: 1.65,
+              fontSize: '0.74rem', color: '#999', lineHeight: 1.65,
               padding: '4px 6px', textAlign: 'center',
             }}>
               {data.intro}
@@ -254,10 +254,10 @@ export function ComparisonAdvisor({ phase }) {
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '5px' }}>
                   {data.today.points.map((pt, i) => (
                     <li key={i} style={{
-                      fontSize: '0.69rem', color: '#7a9db5',
+                      fontSize: '0.69rem', color: '#a8c8e0',
                       display: 'flex', gap: '6px', alignItems: 'flex-start', lineHeight: 1.4,
                     }}>
-                      <span style={{ color: '#00395D', flexShrink: 0, marginTop: '1px', fontWeight: '700' }}>›</span>
+                      <span style={{ color: '#00AEEF', flexShrink: 0, marginTop: '1px', fontWeight: '700' }}>›</span>
                       {pt}
                     </li>
                   ))}
@@ -269,7 +269,7 @@ export function ComparisonAdvisor({ phase }) {
                 <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.3))' }} />
                 <span style={{
                   fontSize: '0.55rem', fontWeight: '700', letterSpacing: '0.12em',
-                  color: '#4a2080', textTransform: 'uppercase', flexShrink: 0,
+                  color: '#7c5cbf', textTransform: 'uppercase', flexShrink: 0,
                 }}>
                   Intelligence Delta
                 </span>
@@ -297,10 +297,10 @@ export function ComparisonAdvisor({ phase }) {
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '5px' }}>
                   {data.future.points.map((pt, i) => (
                     <li key={i} style={{
-                      fontSize: '0.69rem', color: '#b8a4e8',
+                      fontSize: '0.69rem', color: '#d4c4ff',
                       display: 'flex', gap: '6px', alignItems: 'flex-start', lineHeight: 1.4,
                     }}>
-                      <span style={{ color: '#7c3aed', flexShrink: 0, marginTop: '1px', fontWeight: '700' }}>›</span>
+                      <span style={{ color: '#a78bfa', flexShrink: 0, marginTop: '1px', fontWeight: '700' }}>›</span>
                       {pt}
                     </li>
                   ))}
@@ -321,7 +321,7 @@ export function ComparisonAdvisor({ phase }) {
                   }}>
                     Key Insight
                   </div>
-                  <p style={{ margin: 0, fontSize: '0.69rem', color: '#8a7040', lineHeight: 1.6 }}>
+                  <p style={{ margin: 0, fontSize: '0.69rem', color: '#c9a84c', lineHeight: 1.6 }}>
                     {data.insight}
                   </p>
                 </div>
