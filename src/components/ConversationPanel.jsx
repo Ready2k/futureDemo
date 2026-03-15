@@ -247,7 +247,7 @@ export const ConversationPanel = ({ futureMode }) => {
       { label: 'Scene 1 of 6 — Financial Awareness', queries: ['How much money can I spend this month?'], readTime: 18000 },
       { label: 'Scene 2 of 6 — Spending Insight', queries: ['Where does my money go each month?'], readTime: 18000 },
       { label: 'Scene 3 of 6 — Affordability Reasoning', queries: ['Can I afford a £900 holiday?'], readTime: 18000 },
-      { label: 'Scene 4 of 6 — Safe Transfer', queries: ['Move £600 from savings to current.'], readTime: 20000, accountSelect: true },
+      { label: 'Scene 4 of 6 — Safe Transfer', queries: ['Move £600 from savings to current.'], readTime: 20000, readTimeToday: 10000, accountSelect: true },
       { label: 'Scene 5 of 6 — Behavioural Intelligence', queries: null, readTime: 16000, proactive: true },
       { label: 'Scene 6 of 6 — Intelligent Support', queries: ['What is this £85 charge from Northline Services?'], readTime: 24000, multiStep: true },
     ];
@@ -401,7 +401,7 @@ export const ConversationPanel = ({ futureMode }) => {
                   }
                 }
                 
-                await wait(scene.readTime);
+                await wait(!futureModeRef.current && scene.readTimeToday != null ? scene.readTimeToday : scene.readTime);
                 i++; 
             } catch (err) {
                 if (err.message === 'Abort') throw err;
@@ -821,7 +821,45 @@ export const ConversationPanel = ({ futureMode }) => {
         };
         setCurrentTrace(trace);
 
-        const card = (
+        const card = futureMode ? (
+          <div>
+            {/* Future: multi-dimensional affordability score */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <CheckCircle size={20} color="#10b981" />
+              <span style={{ fontWeight: '600', fontSize: '1rem', color: 'var(--success)' }}>Affordable — high confidence</span>
+            </div>
+            {/* Confidence score bar */}
+            <div style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: '12px', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Affordability Score</span>
+                <span style={{ fontSize: '1.3rem', fontWeight: '800', color: '#10b981' }}>87%</span>
+              </div>
+              <div style={{ height: '6px', background: 'rgba(0,0,0,0.08)', borderRadius: '3px', marginBottom: '4px' }}>
+                <div style={{ width: '87%', height: '100%', background: 'linear-gradient(90deg, #10b981, #059669)', borderRadius: '3px' }} />
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Based on 14 financial signals</span>
+            </div>
+            {/* Context factors */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '0.75rem' }}>
+              {[
+                { label: 'Budget headroom', value: `£${freshDiscretionary.toLocaleString()} available`, color: '#10b981' },
+                { label: 'Seasonality', value: 'Summer — typical spend +18%', color: '#f59e0b' },
+                { label: 'Goal timeline', value: 'Savings target unaffected', color: '#10b981' },
+                { label: 'Upcoming commitments', value: '£340 direct debits cleared', color: 'var(--text-secondary)' },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                  <span style={{ fontWeight: '600', color }}>{value}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.18)', borderRadius: '10px', padding: '10px 12px' }}>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: '#7c3aed', lineHeight: 1.5 }}>
+                <strong>Personalised insight:</strong> You historically spend 23% more in summer. Budget now and your £1,000 goal stays on track by August.
+              </p>
+            </div>
+          </div>
+        ) : (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', color: affordable ? 'var(--success)' : 'var(--warning)' }}>
               {affordable ? <CheckCircle size={22} /> : <AlertTriangle size={22} />}
@@ -853,9 +891,11 @@ export const ConversationPanel = ({ futureMode }) => {
         );
 
         addMessage('assistant',
-          affordable
-            ? `Yes — based on your current discretionary budget of £${freshDiscretionary.toLocaleString()}, a £${cost} holiday is within reach and won't touch your savings goal. Here's how it stacks up:`
-            : `You can afford the £${cost} holiday, but it's £${deficit} more than your current free budget. The trade-off is your savings goal slips by roughly ${monthsDelayed} month — worth knowing before you book:`,
+          futureMode
+            ? `Based on 14 financial signals, I'm 87% confident this is the right time to book. Your summer spending pattern is factored in — here's the full picture:`
+            : affordable
+              ? `Yes — based on your current discretionary budget of £${freshDiscretionary.toLocaleString()}, a £${cost} holiday is within reach and won't touch your savings goal. Here's how it stacks up:`
+              : `You can afford the £${cost} holiday, but it's £${deficit} more than your current free budget. The trade-off is your savings goal slips by roughly ${monthsDelayed} month — worth knowing before you book:`,
           card
         );
         break;

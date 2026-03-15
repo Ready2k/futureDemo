@@ -19,8 +19,8 @@ const CollapsedHeader = ({ time, futureMode, totalWealth, onExpand }) => (
     onClick={onExpand}
     style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 20px',
-      height: '52px',
+      padding: '47px 20px 0',
+      height: '91px',
       background: futureMode
         ? 'linear-gradient(90deg, #0D0025, #00395D)'
         : 'var(--brand-blue)',
@@ -137,6 +137,8 @@ function App() {
   const [demoPhase, setDemoPhase] = useState(0);
   const [demoTotal, setDemoTotal] = useState(6);
   const [demoRunning, setDemoRunning] = useState(false);
+  const [showComparisonHomeScreen, setShowComparisonHomeScreen] = useState(false);
+  const comparisonHomeDoneRef = useRef(0);
   const [showPlatformOverlay, setShowPlatformOverlay] = useState(true);
   const [demoPlaying, setDemoPlaying] = useState(true);
 
@@ -210,10 +212,11 @@ function App() {
     setDemoRunning(true);
     setShowPlatformOverlay(false);
     if (comparisonMode) {
-      // Skip home/auth sequence in comparison mode — start autopilot on both phones directly
-      setDemoPhaseLabel('Starting…');
-      setDemoPhase(1);
-      window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO', { detail: { pendingQuery: null } }));
+      // Show ambient entry side-by-side on both phones first
+      comparisonHomeDoneRef.current = 0;
+      setDemoPhaseLabel('Scene 0 — Ambient Entry');
+      setDemoPhase(0);
+      setShowComparisonHomeScreen(true);
     } else {
       setDemoPhaseLabel('Scene 0 — Ambient Entry');
       setDemoPhase(0);
@@ -238,6 +241,16 @@ function App() {
     pendingQueryRef.current = null;
   };
 
+  const handleComparisonHomeComplete = () => {
+    comparisonHomeDoneRef.current += 1;
+    if (comparisonHomeDoneRef.current >= 2) {
+      setShowComparisonHomeScreen(false);
+      setDemoPhaseLabel('Starting…');
+      setDemoPhase(1);
+      window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO', { detail: { pendingQuery: null } }));
+    }
+  };
+
   const handleReset = () => {
     setDemoRunning(false);
     setDemoPhaseLabel(null);
@@ -245,6 +258,8 @@ function App() {
     setShowPlatformOverlay(false);
     setShowHomeScreen(false);
     setShowAuthScreen(false);
+    setShowComparisonHomeScreen(false);
+    comparisonHomeDoneRef.current = 0;
     setAiGlow(false);
     setHeaderCollapsed(false);
     setDemoPlaying(true);
@@ -493,6 +508,14 @@ function App() {
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
                   />
+                  {showComparisonHomeScreen && (
+                    <HomeScreenIntro
+                      futureMode={false}
+                      playing={demoPlaying}
+                      onGlow={() => {}}
+                      onComplete={handleComparisonHomeComplete}
+                    />
+                  )}
                 </div>
               </BankingProvider>
             </div>
@@ -517,6 +540,14 @@ function App() {
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
                   />
+                  {showComparisonHomeScreen && (
+                    <HomeScreenIntro
+                      futureMode={true}
+                      playing={demoPlaying}
+                      onGlow={() => {}}
+                      onComplete={handleComparisonHomeComplete}
+                    />
+                  )}
                 </div>
               </BankingProvider>
             </div>
