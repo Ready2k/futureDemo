@@ -1,4 +1,4 @@
-# Example Future Banking Assistant — Demo
+# Ambient Banking Assistant — Demo
 
 > **Not production banking software.** This is a strategic product demo built to illustrate what an AI-native banking experience could look like. It contains no real financial data, no live APIs, and makes no actual transactions.
 
@@ -25,23 +25,27 @@ npm run lint       # ESLint (flat config, ESLint 9+)
 
 ## Demo Flow
 
-The demo runs 8 phases in sequence, controlled by the presenter panel (bottom of screen).
+The demo runs 8 phases in sequence, controlled by the presenter panel at the top of the screen.
 
 | # | Scene | What Happens |
 |---|-------|-------------|
-| 0 | **Ambient Entry** | iPhone home screen with Apple Intelligence rainbow border. User types a query to Siri. |
+| 0 | **Ambient Entry** | iPhone home screen with Apple Intelligence rainbow border. User types a query to Siri. Today: Siri fails → manual Spotlight search → open Barclays. Future: on-device AI routes the query directly. |
 | — | **Biometric Auth** | Face ID scan animation. In 2028 mode the Siri query passes through automatically — no re-entry. |
 | 1 | **Financial Awareness** | *"How much money can I spend this month?"* → Monthly breakdown card with Safe-to-Spend figure. |
 | 2 | **Spending Insight** | *"Where does my money go each month?"* → Category analysis with animated bar chart. |
-| 3 | **Affordability Reasoning** | *"Can I afford a £900 holiday?"* → Budget impact, savings goal delay, AI reasoning trace. |
-| 4 | **Safe Transfer** | *"Move £600 from savings to current"* → Policy engine fires, approval confirmation required. |
+| 3 | **Affordability Reasoning** | *"Can I afford a £900 holiday?"* → Today: binary yes/no with budget maths. Future: multi-dimensional affordability score with seasonality, goal-timeline modelling, and confidence level. |
+| 4 | **Safe Transfer** | *"Move £600 from savings to current"* → Today: user must choose between two savings accounts. Future: AI picks the lower-yield source (NatWest ISA 3.2%) to preserve the higher-rate Barclays savings (4.75%). |
 | 5 | **Behavioural Intelligence** | Proactive insight card — 3-month restaurant spend trend (Jan £265 → Feb £298 → Mar £420). |
-| 6 | **Intelligent Support** | Multi-step: unknown charge → dispute → merchant block → human specialist handoff. |
+| 6 | **Intelligent Support** | Multi-step: unknown charge → dispute → merchant block → human specialist handoff. Today: manual detail capture, no context shared. Future: AI-to-AI negotiation, rich context package pre-loaded for the advisor. |
 | 7 | **Platform Overlay** | Architecture stack + business value metrics. Strategic framing for decision-makers. |
 
 ### 2028 / Future Mode
 
 Toggle via the presenter controls. Transfers execute without confirmation (continuous biometric session narrative). Policy reasoning shows "friction waived" language. The Siri query from Scene 0 flows directly into Scene 1 without the user re-typing it.
+
+### Compare Mode
+
+Enables a side-by-side layout: **Today** on the left, **2028** on the right, and a **Strategy Advisor** panel in the centre. The advisor updates scene-by-scene, showing the key differences between today's experience and the future vision with an "Intelligence Delta" summary and key insight for each phase. Both phones run the full autopilot in sync, starting from the ambient entry (Scene 0) side-by-side.
 
 ---
 
@@ -51,16 +55,17 @@ Toggle via the presenter controls. Transfers execute without confirmation (conti
 
 ```
 src/
-├── App.jsx                    # Root — demo lifecycle, presenter controls
+├── App.jsx                    # Root — demo lifecycle, presenter controls, comparison layout
 ├── context/BankingContext.jsx # Global state + mock banking operations
 ├── services/
 │   ├── intentEngine.js        # Regex NLU → { intent, parameters }
 │   └── policyEngine.js        # Transfer rules (min balance £1000, confirm > £500)
 ├── data/mockData.js           # Single source of truth for all financial figures
 └── components/
-    ├── ConversationPanel.jsx  # Chat UI, autopilot, all scene cards
+    ├── ConversationPanel.jsx  # Chat UI, autopilot, all scene cards (Today + Future variants)
+    ├── ComparisonAdvisor.jsx  # Scene-by-scene Today vs 2028 strategy panel
     ├── ReasoningDrawer.jsx    # AI reasoning trace panel (left of phone frame)
-    ├── HomeScreenIntro.jsx    # Timed iPhone home screen animation
+    ├── HomeScreenIntro.jsx    # Timed iPhone home screen animation (Today + Future variants)
     ├── BiometricAuthScreen.jsx# Face ID sequence
     ├── FinancialSummaryCard.jsx
     └── PlatformOverlay.jsx    # Final architecture + business value slide
@@ -68,24 +73,21 @@ src/
 
 Scene state, autopilot, and presenter controls communicate via a **custom DOM event bus** (`START_AUTOPILOT_DEMO`, `RESET_CHAT`, `AUTOPILOT_CTRL`, `DEMO_PHASE_UPDATE`). There are no live LLM calls anywhere.
 
+In Compare mode, each phone has its own independent `BankingContext` provider and `ConversationPanel` autopilot — both listen to the same event bus and run in parallel.
+
 ---
 
 ## Presenter Controls
 
-The control bar at the bottom of the screen (visible during the demo) provides:
+The control bar at the top of the screen provides:
 
 - **Play / Pause** — autopilot runs each scene automatically with realistic typing delays
 - **Prev / Next** — jump between scenes
 - **Scene selector** — jump to any specific scene
 - **Reset** — return to the home screen
-- **2028 toggle** — switch to the future-mode narrative
+- **Today / 2028 toggle** — switch to the future-mode narrative (single phone mode)
+- **Compare toggle** — side-by-side Today vs 2028 layout with Strategy Advisor
 - **Dark / Light** — theme toggle
-
----
-
-## Screenshots / Recording
-
-> Add a short screen recording (`demo.gif` or `demo.mp4`) and an architecture diagram (`architecture.png`) to the repo root for stakeholder sharing. Neither is included in this commit — capture them from a running instance with `npm run dev`.
 
 ---
 
