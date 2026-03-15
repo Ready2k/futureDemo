@@ -83,9 +83,54 @@ export const ConversationPanel = ({ futureMode }) => {
   const [showProactive, setShowProactive] = useState(false);
   const [currentTrace, setCurrentTrace] = useState(null);
 
-  const INITIAL_MESSAGE = {
+  const futureModeRef = useRef(futureMode);
+  useEffect(() => { futureModeRef.current = futureMode; }, [futureMode]);
+
+  const makeInitialMsg = () => ({
     id: 1, role: 'assistant',
-    text: "Hello! I can help you check your balances, make transfers, or analyze if you can afford that new purchase. What's on your mind?"
+    text: futureModeRef.current
+      ? "Good morning James. You have £8,240 across your Barclays and NatWest accounts, with £160 discretionary this month after bills and savings. I'm already tracking a restaurant spend spike — you're 47% above your 3-month average. Where would you like to start?"
+      : "Hello! I can help you check your balances, make transfers, or analyze if you can afford that new purchase. What's on your mind?"
+  });
+
+  const INITIAL_MESSAGE = makeInitialMsg();
+
+  const MODEL_ROUTING = {
+    check_balance: {
+      intent: 'On-device SLM — 8ms', reasoning: 'Barclays Financial LLM (cloud)',
+      sources: ['Barclays Core Banking API', 'NatWest Open Banking API', 'Payroll pattern model'],
+      tools: ['balance_aggregate', 'expense_classify', 'discretionary_compute'],
+    },
+    analyse_spending: {
+      intent: 'On-device SLM — 6ms', reasoning: 'Barclays Spending Intelligence LLM',
+      sources: ['Transaction history (24mo)', 'Open Banking merchant categories'],
+      tools: ['transaction_classify', 'trend_analysis', 'budget_optimise'],
+    },
+    affordability_check: {
+      intent: 'On-device SLM — 11ms', reasoning: 'Barclays Reasoning Agent (CoT)',
+      sources: ['Live balances', 'Committed future spend model', 'Savings goal tracker'],
+      tools: ['affordability_compute', 'savings_impact_model', 'cashflow_simulate'],
+    },
+    transfer_2028: {
+      intent: 'On-device SLM — 4ms', reasoning: 'On-device policy engine (no cloud call)',
+      sources: ['Biometric session token', 'Device trust score', 'Velocity model'],
+      tools: ['intent_parse', 'biometric_verify', 'transfer_execute'],
+    },
+    support_query: {
+      intent: 'On-device SLM — 9ms', reasoning: 'Barclays Fraud & Risk LLM',
+      sources: ['Transaction history (24mo)', 'Merchant risk database', 'Behaviour model'],
+      tools: ['transaction_match', 'merchant_classify', 'anomaly_score'],
+    },
+    support_dispute: {
+      intent: 'On-device SLM — 3ms', reasoning: 'Barclays Dispute Agent + Merchant API Agent',
+      sources: ['Fraud risk DB', 'Account statement', 'Merchant API handshake'],
+      tools: ['dispute_open', 'merchant_block', 'agent_negotiate'],
+    },
+    escalate_human: {
+      intent: 'Escalation trigger — 2ms', reasoning: 'Context packaging model',
+      sources: ['Full conversation thread', 'Dispute metadata #FR-2839', 'Risk score'],
+      tools: ['context_package', 'agent_handoff', 'co_pilot_brief'],
+    },
   };
 
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
@@ -136,7 +181,7 @@ export const ConversationPanel = ({ futureMode }) => {
   useEffect(() => { processInputRef.current = processInput; });
 
   const resetChat = () => {
-    setMessages([INITIAL_MESSAGE]);
+    setMessages([makeInitialMsg()]);
     setCurrentTrace(null);
     setInput('');
     setIsTyping(false);
@@ -144,13 +189,20 @@ export const ConversationPanel = ({ futureMode }) => {
   };
 
   // ── Full Multi-Phase Autopilot ─────────────────────────────────────────────
-  const demoCore = useRef({ active: false, playing: true, skip: false, target: null });
+  // resumeGate: a Promise resolver held while paused — called immediately on resume
+  const demoCore = useRef({ active: false, playing: true, skip: false, target: null, resumeGate: null });
 
   useEffect(() => {
     const handleCtrl = (e) => {
       const action = e.detail?.action;
       if (action === 'togglePlay') {
         demoCore.current.playing = !demoCore.current.playing;
+        // Immediately unblock the gate promise if resuming
+        if (demoCore.current.playing && demoCore.current.resumeGate) {
+          const resolve = demoCore.current.resumeGate;
+          demoCore.current.resumeGate = null;
+          resolve();
+        }
         window.dispatchEvent(new CustomEvent('AUTOPILOT_PLAY_STATE', { detail: { playing: demoCore.current.playing } }));
       }
       if (action === 'jump') {
@@ -173,10 +225,10 @@ export const ConversationPanel = ({ futureMode }) => {
   useEffect(() => {
     const SCENES = [
       { label: 'Scene 1 of 6 — Financial Awareness', queries: ['How much money can I spend this month?'], readTime: 18000 },
-      { label: 'Scene 2 of 6 — Spending Analysis', queries: ['Where does my money go each month?'], readTime: 18000 },
-      { label: 'Scene 3 of 6 — Affordability Check', queries: ['Can I afford a £900 holiday?'], readTime: 18000 },
-      { label: 'Scene 4 of 6 — Policy Guardrails', queries: ['Move £600 from savings to current.'], readTime: 18000 },
-      { label: 'Scene 5 of 6 — Financial Copilot', queries: null, readTime: 16000, proactive: true },
+      { label: 'Scene 2 of 6 — Spending Insight', queries: ['Where does my money go each month?'], readTime: 18000 },
+      { label: 'Scene 3 of 6 — Affordability Reasoning', queries: ['Can I afford a £900 holiday?'], readTime: 18000 },
+      { label: 'Scene 4 of 6 — Safe Transfer', queries: ['Move £600 from savings to current.'], readTime: 18000 },
+      { label: 'Scene 5 of 6 — Behavioural Intelligence', queries: null, readTime: 16000, proactive: true },
       { label: 'Scene 6 of 6 — Intelligent Support', queries: ['What is this £85 charge from Northline Services?'], readTime: 24000, multiStep: true },
     ];
 
@@ -196,13 +248,14 @@ export const ConversationPanel = ({ futureMode }) => {
 
       const wait = async (ms) => {
         let elapsed = 0;
-        const step = 50;
+        const step = 100;
         while (elapsed < ms) {
           if (!demoCore.current.active) throw new Error('Abort');
           if (demoCore.current.skip) throw new Error('Skip');
           if (!demoCore.current.playing) {
-             await new Promise(r => setTimeout(r, step));
-             continue;
+            // Block here until resume is called — no polling, immediate response
+            await new Promise(resolve => { demoCore.current.resumeGate = resolve; });
+            continue;
           }
           await new Promise(r => setTimeout(r, step));
           elapsed += step;
@@ -240,17 +293,24 @@ export const ConversationPanel = ({ futureMode }) => {
                 resetChat();
                 dispatch(scene.label, { phase: i + 1, total: SCENES.length });
                 await wait(700);
-                setMessages([INITIAL_MESSAGE, { id: Date.now(), role: 'assistant', text: null, card: sceneCard(scene) }]);
+                setMessages([makeInitialMsg(), { id: Date.now(), role: 'assistant', text: null, card: sceneCard(scene) }]);
                 await wait(1800);
 
                 if (scene.proactive) {
+                  const is2028 = futureModeRef.current;
                   const insightCard = (
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
                         <div style={{ width: '8px', height: '8px', background: '#f59e0b', borderRadius: '50%', boxShadow: '0 0 6px rgba(245,158,11,0.6)' }} />
                         <span style={{ fontWeight: '700', fontSize: '0.85rem', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Behavioural Insight</span>
-                        <span style={{ marginLeft: 'auto', fontSize: '0.65rem', fontWeight: '700', background: 'rgba(245,158,11,0.15)', color: '#b45309', padding: '2px 8px', borderRadius: '100px' }}>3-month trend</span>
+                        <span style={{ marginLeft: 'auto', fontSize: '0.65rem', fontWeight: '700', background: is2028 ? 'linear-gradient(90deg, #7c3aed, #00AEEF)' : 'rgba(245,158,11,0.15)', color: is2028 ? 'white' : '#b45309', padding: '2px 8px', borderRadius: '100px' }}>{is2028 ? '⚡ 2028 — Continuous monitoring' : '3-month trend'}</span>
                       </div>
+                      {is2028 && (
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '0.75rem', padding: '6px 10px', background: 'rgba(124,58,237,0.06)', borderRadius: '8px', border: '1px solid rgba(124,58,237,0.15)' }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', animation: 'pulse 1.5s infinite' }} />
+                          <span style={{ fontSize: '0.72rem', color: '#9c6fef' }}>On-device SLM detected anomaly · Spending Intelligence LLM confirmed · Alert surfaced proactively</span>
+                        </div>
+                      )}
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', marginBottom: '1rem', height: '48px' }}>
                         {[{ m: 'Jan', v: 265 }, { m: 'Feb', v: 298 }, { m: 'Mar', v: 420 }].map(({ m, v }) => (
                           <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
@@ -265,24 +325,28 @@ export const ConversationPanel = ({ futureMode }) => {
                         </p>
                         <p style={{ fontSize: '0.88rem', color: '#92400e', lineHeight: 1.6 }}>
                           Jan £265 → Feb £298 → Mar <strong>£420</strong><br />
-                          This month alone is 46% above your 3-month average.<br />
-                          Would you like me to set a dining limit or adjust your budget?
+                          {is2028
+                            ? <>This month is 47% above your 3-month average. <strong>I've drafted a suggested budget adjustment</strong> — I'll alert you when you approach 80% of any category limit.</>
+                            : <>This month alone is 46% above your 3-month average.<br />Would you like me to set a dining limit or adjust your budget?</>
+                          }
                         </p>
                       </div>
                       <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button style={{ flex: 1, padding: '11px', background: '#00395D', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer' }}>Set Dining Limit</button>
+                        <button style={{ flex: 1, padding: '11px', background: is2028 ? 'linear-gradient(135deg, #7c3aed, #00395D)' : '#00395D', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer' }}>{is2028 ? 'Apply Budget Adjustment' : 'Set Dining Limit'}</button>
                         <button style={{ flex: 1, padding: '11px', background: 'rgba(0,0,0,0.04)', color: 'var(--text-secondary)', border: '1px solid #ddd', borderRadius: '10px', fontWeight: '500', fontSize: '0.9rem', cursor: 'pointer' }}>Dismiss</button>
                       </div>
-                      <button style={{ width: '100%', marginTop: '0.6rem', padding: '10px', background: 'transparent', color: '#00395D', border: '1px solid rgba(0,57,93,0.2)', borderRadius: '10px', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>
-                        👁 Keep an eye on dining spend each month
-                      </button>
+                      {!is2028 && (
+                        <button style={{ width: '100%', marginTop: '0.6rem', padding: '10px', background: 'transparent', color: '#00395D', border: '1px solid rgba(0,57,93,0.2)', borderRadius: '10px', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          Monitor Dining Spend
+                        </button>
+                      )}
                     </div>
                   );
                   await wait(1000);
                   setIsTyping(true);
                   await wait(1800);
                   setIsTyping(false);
-                  setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', text: "I've noticed your restaurant spending has been trending upward over the past three months. This is the kind of pattern that's easy to miss month-to-month but adds up quickly.", card: insightCard }]);
+                  setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', text: is2028 ? "I've been monitoring your spending patterns continuously. Your restaurant category crossed my anomaly threshold this week — you're 47% above your 3-month baseline and trending higher. I've already drafted a budget adjustment for your review." : "I've noticed your restaurant spending has been trending upward over the past three months. This is the kind of pattern that's easy to miss month-to-month but adds up quickly.", card: insightCard }]);
                 } else if (scene.multiStep) {
                   await typeText(scene.queries[0]);
                   await wait(5000); 
@@ -343,7 +407,7 @@ export const ConversationPanel = ({ futureMode }) => {
 
       case 'check_balance': {
         const expensesTotal = Object.values(profile.expenses).reduce((a, b) => a + b, 0);
-        const isa = profile.linked_accounts?.natwest_isa;
+        const isa = futureMode ? profile.linked_accounts?.natwest_isa : null;
         const totalWealth = profile.accounts.current + profile.accounts.savings + (isa?.balance || 0);
 
         const trace = {
@@ -363,11 +427,12 @@ export const ConversationPanel = ({ futureMode }) => {
             'Savings goal': { value: `-£${profile.savings_goal.toLocaleString()}`, color: '#ef5350' },
             'Safe-to-Spend': { value: `£${freshDiscretionary.toLocaleString()}`, highlight: true, color: '#00AEEF' }
           },
+          modelRouting: futureMode ? MODEL_ROUTING.check_balance : undefined,
           outcome: {
             ok: true,
             verdict: 'Budget Calculated',
             impact: `Discretionary income is £${freshDiscretionary.toLocaleString()} / month.`,
-            futureNote: 'In 2028 mode, this analysis runs continuously and proactively alerts you before bills hit.'
+            futureNote: 'Your financial copilot runs this using an on-device SLM (<10ms) cross-referenced with your Barclays and NatWest accounts via Open Banking. It surfaces this insight proactively — alerting you 72 hours before a cash flow issue, not after you ask.'
           }
         };
         setCurrentTrace(trace);
@@ -401,7 +466,9 @@ export const ConversationPanel = ({ futureMode }) => {
         );
 
         addMessage('assistant',
-          `Based on your income and outgoings, you have around £${freshDiscretionary.toLocaleString()} available to spend freely this month — after bills and your savings goal are accounted for. Here's the full breakdown:`,
+          futureMode
+            ? `Computed in real-time across your Barclays and NatWest accounts: you have £${freshDiscretionary.toLocaleString()} available this month — with your NatWest ISA earning 4.5% AER and all committed spend factored in. Here's the full picture:`
+            : `Based on your income and outgoings, you have around £${freshDiscretionary.toLocaleString()} available to spend freely this month — after bills and your savings goal are accounted for. Here's the full breakdown:`,
           card
         );
         break;
@@ -424,6 +491,7 @@ export const ConversationPanel = ({ futureMode }) => {
               `Policy result: INSTANT EXECUTION — biometric consent confirmed`
             ],
             policy: { amount, rule: 'Continuous biometric auth — friction waived', fraudRisk: 'Low', deviceTrust: 'Verified (Passkey)', velocityCheck: 'Pass', action: 'Executed instantly — no explicit confirmation required', actionColor: 'success' },
+            modelRouting: MODEL_ROUTING.transfer_2028,
             outcome: { ok: true, verdict: 'Instant Transfer Executed', impact: `£${amount} moved without friction via persistent biometric identity.`, futureNote: '' }
           };
           setCurrentTrace(trace);
@@ -485,7 +553,7 @@ export const ConversationPanel = ({ futureMode }) => {
             ok: policyResult.status === 'approved',
             verdict: policyResult.status === 'approved' ? 'Transfer Executed' : 'Authorisation Required',
             impact: policyResult.reason,
-            futureNote: 'In 2028 mode, continuous biometric authentication replaces explicit approval steps.'
+            futureNote: 'On-device Face ID combined with behavioural biometrics (typing cadence, device location, velocity pattern) creates a persistent zero-friction session — intent recognised and executed in one step, no confirmation tap required.'
           }
         };
         setCurrentTrace(trace);
@@ -563,10 +631,11 @@ export const ConversationPanel = ({ futureMode }) => {
             `Remaining after expenses + savings goal: £${freshDiscretionary.toLocaleString()}`
           ],
           financials: Object.fromEntries(sortedCats.map(c => [c.name, { value: `£${c.amount} (${c.pct}%)` }])),
+          modelRouting: futureMode ? MODEL_ROUTING.analyse_spending : undefined,
           outcome: {
             ok: true, verdict: 'Spending Analysis Complete',
             impact: `£${expensesTotal.toLocaleString()} committed monthly (${Math.round(expensesTotal / profile.income * 100)}% of income). £${freshDiscretionary.toLocaleString()} discretionary.`,
-            futureNote: 'In 2028 mode, spending patterns are analysed in real-time with proactive rebalancing suggestions.'
+            futureNote: 'Every transaction is classified in real-time by an on-device SLM using a bank-trained merchant taxonomy. A cloud reasoning model runs monthly re-optimisation across all your accounts — including pensions and investments — surfacing rebalancing suggestions before you fall off budget.'
           }
         };
         setCurrentTrace(trace);
@@ -628,11 +697,12 @@ export const ConversationPanel = ({ futureMode }) => {
               color: affordable ? 'var(--success)' : '#f59e0b'
             }
           },
+          modelRouting: futureMode ? MODEL_ROUTING.affordability_check : undefined,
           outcome: {
             ok: affordable,
             verdict: affordable ? 'Affordable' : 'Affordable (with impact)',
             impact: affordable ? `£${cost} falls within your discretionary budget.` : `Savings goal delayed by ~${monthsDelayed} month(s). Holiday costs £${deficit} more than your current free budget.`,
-            futureNote: 'In 2028 mode, affordability is tracked continuously against future committed spending.'
+            futureNote: 'Affordability is a continuous model state, not a one-time query. The reasoning agent holds your committed future spend — direct debits, subscriptions, scheduled payments — in context and recomputes your real discretionary budget every time a new transaction clears.'
           }
         };
         setCurrentTrace(trace);
@@ -697,10 +767,11 @@ export const ConversationPanel = ({ futureMode }) => {
             'Merchant': { value: 'Northline Services' },
             'Status': { value: 'Cleared' }
           },
+          modelRouting: futureMode ? MODEL_ROUTING.support_query : undefined,
           outcome: {
             ok: true, verdict: 'Transaction Located',
             impact: 'Transaction details prepared. Standing by for user recognition confirm.',
-            futureNote: 'In 2028 mode, LLMs proactively block shadow subscriptions before they clear.'
+            futureNote: 'The on-device SLM pattern-matches your 24-month transaction history in under 50ms, flagging anomalous merchants before they clear — surfacing this to you proactively, before you even open the app.'
           }
         };
         setCurrentTrace(trace);
@@ -741,10 +812,11 @@ export const ConversationPanel = ({ futureMode }) => {
           policy: {
             amount: 85, rule: 'Unrecognised transaction reported', fraudRisk: 'Medium', deviceTrust: 'High', velocityCheck: 'Pass', action: 'Merchant blocked, dispute opened auto-approved', actionColor: 'warning'
           },
+          modelRouting: futureMode ? MODEL_ROUTING.support_dispute : undefined,
           outcome: {
             ok: true, verdict: 'Dispute Initiated',
             impact: 'Merchant blocked. Funds frozen pending review.',
-            futureNote: 'In 2028 mode, an AI agent negotiates the refund with the merchant\'s AI agent in the background.'
+            futureNote: 'AI-to-AI resolution: Barclays\' dispute agent initiates a protocol with Northline\'s merchant API, presents the case evidence, and negotiates the refund — typically resolved in under 2 minutes, no human intervention required.'
           }
         };
         setCurrentTrace(trace);
@@ -811,7 +883,8 @@ export const ConversationPanel = ({ futureMode }) => {
             `Routing to Available Fraud Specialist`
           ],
           policy: { rule: 'Human escalation requested', action: 'Context transferred to live agent pool', fraudRisk: 'Monitoring', deviceTrust: 'High', velocityCheck: 'Pass', actionColor: 'success' },
-          outcome: { ok: true, verdict: 'Agent Connect', impact: 'User connected to Sarah (Fraud Team) with full digital context.', futureNote: 'Frictionless handoffs mean customers never repeat information.' }
+          modelRouting: futureMode ? MODEL_ROUTING.escalate_human : undefined,
+          outcome: { ok: true, verdict: 'Agent Connect', impact: 'User connected to Sarah (Fraud Team) with full digital context.', futureNote: 'The AI maintains your full conversation thread, dispute metadata, and risk profile as structured context — passed to Sarah as a co-pilot brief. She has everything before saying hello; you never repeat yourself.' }
         };
         setCurrentTrace(trace);
 
@@ -911,8 +984,9 @@ export const ConversationPanel = ({ futureMode }) => {
       {/* Input bar */}
       <div style={{ padding: '0.75rem 1rem 1rem', borderTop: '1px solid var(--divider)', background: 'var(--bg-secondary)' }}>
         {futureMode && (
-          <div style={{ fontSize: '0.72rem', color: '#7c3aed', fontWeight: '600', textAlign: 'center', marginBottom: '6px', letterSpacing: '0.04em' }}>
-            ⚡ 2028 Mode — Intent execution is instant. No friction layers.
+          <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '600', textAlign: 'center', marginBottom: '6px', letterSpacing: '0.03em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#7c3aed', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+            On-device SLM · Cloud reasoning · Continuous biometric session · Zero friction
           </div>
         )}
         <div className="chat-input-wrap">

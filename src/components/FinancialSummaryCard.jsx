@@ -2,10 +2,10 @@ import React from 'react';
 import { useBanking } from '../context/BankingContext';
 import { CreditCard, Wallet, TrendingUp, Building2 } from 'lucide-react';
 
-export const FinancialSummaryCard = () => {
+export const FinancialSummaryCard = ({ futureMode }) => {
   const { profile, discretionaryIncome } = useBanking();
   const isa = profile.linked_accounts?.natwest_isa;
-  const totalWealth = profile.accounts.current + profile.accounts.savings + (isa?.balance || 0);
+  const totalWealth = profile.accounts.current + profile.accounts.savings + (futureMode ? (isa?.balance || 0) : 0);
 
   return (
     <div style={{ padding: '0 0 1rem 0', background: 'var(--brand-blue)', color: 'white', position: 'relative', zIndex: 10 }}>
@@ -43,8 +43,8 @@ export const FinancialSummaryCard = () => {
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Available balance</p>
         </div>
 
-        {/* Linked NatWest ISA — the cross-bank moment */}
-        {isa && (
+        {/* Linked NatWest ISA — cross-bank aggregation (2028 mode only) */}
+        {isa && futureMode && (
           <div style={{ minWidth: '280px', background: 'white', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 8px 16px rgba(0,0,0,0.15)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '6px', background: 'linear-gradient(90deg, #6b1f1f, #c0392b)' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -77,10 +77,12 @@ export const FinancialSummaryCard = () => {
 
       </div>
 
-      {/* Cross-institution total — reframes this as a financial OS, not a banking app */}
+      {/* Footer: cross-institution total in 2028 mode; Barclays-only total in Today mode */}
       <div style={{ paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '0.5rem' }}>
         <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '10px', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.75)' }}>Total across all accounts</span>
+          <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.75)' }}>
+            {futureMode ? 'Total across all accounts' : 'Total across Barclays accounts'}
+          </span>
           <span style={{ fontSize: '0.95rem', fontWeight: '700', color: 'white' }}>£{totalWealth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
         </div>
       </div>

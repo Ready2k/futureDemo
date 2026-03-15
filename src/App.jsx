@@ -44,7 +44,7 @@ const CollapsedHeader = ({ time, futureMode, totalWealth, onExpand }) => (
 function AppInner({ futureMode, headerCollapsed, onExpand }) {
   const { profile, discretionaryIncome } = useBanking();
   const isa = profile?.linked_accounts?.natwest_isa;
-  const totalWealth = (profile?.accounts.current || 0) + (profile?.accounts.savings || 0) + (isa?.balance || 0);
+  const totalWealth = (profile?.accounts.current || 0) + (profile?.accounts.savings || 0) + (futureMode ? (isa?.balance || 0) : 0);
   const [time] = useState(() =>
     new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })
   );
@@ -102,7 +102,7 @@ function AppInner({ futureMode, headerCollapsed, onExpand }) {
 
               {/* Account Cards */}
               <div style={{ background: headerBg, borderRadius: '0 0 24px 24px', zIndex: 10, flexShrink: 0 }}>
-                <FinancialSummaryCard />
+                <FinancialSummaryCard futureMode={futureMode} />
               </div>
             </motion.div>
           )}
@@ -176,11 +176,18 @@ function App() {
     return () => window.removeEventListener('DEMO_PHASE_UPDATE', onPhaseUpdate);
   }, []);
 
+  // Sync play/pause button icon with autopilot state
+  useEffect(() => {
+    const onPlayState = (e) => setDemoPlaying(e.detail.playing);
+    window.addEventListener('AUTOPILOT_PLAY_STATE', onPlayState);
+    return () => window.removeEventListener('AUTOPILOT_PLAY_STATE', onPlayState);
+  }, []);
+
   const handleDemoClick = () => {
     if (demoRunning) return;
     setDemoRunning(true);
     setShowPlatformOverlay(false);
-    setDemoPhaseLabel('Intro…');
+    setDemoPhaseLabel('Scene 0 — Ambient Entry');
     setDemoPhase(0);
     // Show home screen first — it fires START_AUTOPILOT_DEMO on completion
     setShowHomeScreen(true);
@@ -189,7 +196,7 @@ function App() {
   const handleHomeScreenComplete = () => {
     setShowHomeScreen(false);
     setAiGlow(false);
-    setDemoPhaseLabel('Authenticating…');
+    setDemoPhaseLabel('Scene 0 — Authenticating…');
     setShowAuthScreen(true);
   };
 
@@ -215,26 +222,215 @@ function App() {
 
   const isComplete = demoPhaseLabel && (demoPhaseLabel.startsWith('✓') || demoPhaseLabel.startsWith('Platform'));
 
+  const SCENE_OPTIONS = [
+    { value: 0, label: '1. Financial Awareness' },
+    { value: 1, label: '2. Spending Insight' },
+    { value: 2, label: '3. Affordability Reasoning' },
+    { value: 3, label: '4. Safe Transfer' },
+    { value: 4, label: '5. Behavioural Intelligence' },
+    { value: 5, label: '6. Intelligent Support' },
+  ];
+
   return (
     <BankingProvider>
-      <div className={`mobile-device-wrapper ${aiGlow ? 'ai-glow' : ''}`}>
-        <AppInner
-          futureMode={futureMode}
-          headerCollapsed={headerCollapsed}
-          onExpand={() => setHeaderCollapsed(false)}
-        />
-        <AnimatePresence>
-          {showAuthScreen && (
-            <BiometricAuthScreen onComplete={handleAuthComplete} />
-          )}
-        </AnimatePresence>
 
-        {/* Scene 0 — Home Screen Intro (overlays the banking app and auth) */}
-        <AnimatePresence>
-          {showHomeScreen && (
-            <HomeScreenIntro onGlow={() => setAiGlow(true)} onComplete={handleHomeScreenComplete} />
+      {/* ── Presenter Header Bar ──────────────────────────────────────────── */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9998,
+        background: '#0F0F0F', borderBottom: '1px solid #1e1e1e',
+        height: '58px', display: 'flex', alignItems: 'center',
+        padding: '0 20px', gap: '12px', fontFamily: 'inherit',
+      }}>
+
+        {/* Left — branding */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#00AEEF', letterSpacing: '0.18em', textTransform: 'uppercase' }}>Ambient Banking</span>
+          <div style={{ width: '1px', height: '14px', background: '#2a2a2a' }} />
+          <span style={{ fontSize: '0.68rem', color: '#444', letterSpacing: '0.05em' }}>Presenter Demo</span>
+        </div>
+
+        {/* Centre — progress bar */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px', padding: '0 28px' }}>
+          {demoRunning && demoPhaseLabel && !isComplete && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.68rem', color: demoPlaying ? '#888' : '#f59e0b', fontFamily: 'inherit', transition: 'color 0.2s' }}>
+                  {demoPlaying ? demoPhaseLabel : `⏸  ${demoPhaseLabel}`}
+                </span>
+                <span style={{ fontSize: '0.66rem', color: '#444' }}>{demoPhase} / {demoTotal}</span>
+              </div>
+              <div style={{ height: '3px', background: '#222', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(demoPhase / demoTotal) * 100}%`, background: demoPlaying ? 'linear-gradient(90deg, #00395D, #00AEEF)' : '#f59e0b', borderRadius: '3px', transition: 'background 0.3s, width 0.8s ease' }} />
+              </div>
+            </>
           )}
-        </AnimatePresence>
+          {isComplete && (
+            <span style={{ fontSize: '0.68rem', color: '#4caf50', fontFamily: 'inherit' }}>{demoPhaseLabel}</span>
+          )}
+        </div>
+
+        {/* Right — controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+
+          {/* Dark mode */}
+          <button
+            onClick={() => setDarkMode(d => !d)}
+            style={{
+              background: 'transparent', border: '1px solid #272727',
+              borderRadius: '100px', padding: '7px 14px',
+              color: '#777', display: 'flex', alignItems: 'center', gap: '6px',
+              cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'inherit',
+            }}
+          >
+            {darkMode ? <Sun size={13} /> : <Moon size={13} />}
+            {darkMode ? 'Light' : 'Dark'}
+          </button>
+
+          {/* Future mode */}
+          <div
+            onClick={() => setFutureMode(f => !f)}
+            style={{
+              background: futureMode ? 'linear-gradient(135deg, #7c3aed, #00AEEF)' : '#1a1a1a',
+              border: `1px solid ${futureMode ? 'transparent' : '#272727'}`,
+              borderRadius: '100px', padding: '7px 14px', color: 'white',
+              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+              fontSize: '0.78rem', fontFamily: 'inherit',
+              boxShadow: futureMode ? '0 4px 16px rgba(124,58,237,0.35)' : 'none',
+              transition: 'all 0.25s',
+            }}
+          >
+            <Zap size={13} fill={futureMode ? 'white' : 'none'} />
+            <span>{futureMode ? '2028 Mode' : 'Today'}</span>
+            <div style={{ width: '26px', height: '15px', borderRadius: '100px', background: 'rgba(255,255,255,0.2)', position: 'relative', flexShrink: 0 }}>
+              <div style={{ width: '11px', height: '11px', background: 'white', borderRadius: '50%', position: 'absolute', top: '2px', left: futureMode ? '13px' : '2px', transition: 'left 0.25s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+            </div>
+          </div>
+
+          <div style={{ width: '1px', height: '24px', background: '#1e1e1e' }} />
+
+          {/* Playback controls — while running */}
+          {demoRunning && !isComplete && (
+            <>
+              <div style={{ display: 'flex', gap: '2px', background: '#1a1a1a', borderRadius: '100px', padding: '4px', border: '1px solid #272727' }}>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: demoPhase - 2 } }))}
+                  title="Previous scene"
+                  style={{ background: 'transparent', border: 'none', color: '#666', padding: '7px 9px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center' }}
+                >
+                  <Rewind size={15} />
+                </button>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'togglePlay' } }))}
+                  title={demoPlaying ? 'Pause' : 'Resume'}
+                  style={{ background: '#00395D', border: 'none', color: 'white', padding: '7px 9px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', boxShadow: '0 0 10px rgba(0,174,239,0.3)' }}
+                >
+                  {demoPlaying ? <Pause size={15} fill="white" /> : <Play size={15} fill="white" />}
+                </button>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: demoPhase } }))}
+                  title="Next scene"
+                  style={{ background: 'transparent', border: 'none', color: '#666', padding: '7px 9px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center' }}
+                >
+                  <FastForward size={15} />
+                </button>
+              </div>
+
+              <select
+                onChange={(e) => {
+                  const idx = parseInt(e.target.value, 10);
+                  window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: idx } }));
+                }}
+                value={demoPhase > 0 ? demoPhase - 1 : ''}
+                style={{ background: '#1a1a1a', color: '#bbb', border: '1px solid #272727', borderRadius: '100px', padding: '8px 14px', outline: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', appearance: 'none' }}
+              >
+                <option value="" disabled>Jump to…</option>
+                {SCENE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+
+              <button
+                onClick={handleReset}
+                title="Reset demo"
+                style={{ background: 'transparent', border: '1px solid #272727', color: '#555', padding: '8px 10px', borderRadius: '100px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <RotateCcw size={14} />
+              </button>
+            </>
+          )}
+
+          {/* Jump dropdown — when idle or complete */}
+          {(!demoRunning || isComplete) && (
+            <select
+              onChange={(e) => {
+                const idx = parseInt(e.target.value, 10);
+                e.target.value = '';
+                window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: idx } }));
+              }}
+              value=""
+              style={{ background: '#1a1a1a', color: '#666', border: '1px solid #272727', borderRadius: '100px', padding: '8px 14px', outline: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', appearance: 'none' }}
+            >
+              <option value="" disabled>Jump Directly To…</option>
+              {SCENE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          )}
+
+          {/* Reset — when complete */}
+          {isComplete && (
+            <button
+              onClick={handleReset}
+              title="Reset demo"
+              style={{ background: 'transparent', border: '1px solid #272727', color: '#555', padding: '8px 10px', borderRadius: '100px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <RotateCcw size={14} />
+            </button>
+          )}
+
+          {/* Start / Restart */}
+          <button
+            onClick={isComplete ? handleReset : handleDemoClick}
+            disabled={demoRunning && !isComplete}
+            style={{
+              background: isComplete ? '#0a2a0a' : demoRunning ? '#1a1a1a' : '#0F0F0F',
+              color: isComplete ? '#4caf50' : 'white',
+              border: `1px solid ${isComplete ? 'rgba(76,175,80,0.4)' : '#3d3d3d'}`,
+              padding: '8px 18px', borderRadius: '100px',
+              fontFamily: 'inherit', fontWeight: '600', fontSize: '0.85rem',
+              cursor: demoRunning && !isComplete ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: '8px',
+              opacity: demoRunning && !isComplete ? 0.55 : 1,
+              transition: 'all 0.2s',
+            }}
+          >
+            <span style={{
+              width: '9px', height: '9px', flexShrink: 0,
+              background: isComplete ? '#4caf50' : demoRunning ? '#ff9800' : '#00AEEF',
+              borderRadius: '50%',
+              animation: demoRunning && !isComplete ? 'pulseOrange 1.2s infinite' : 'pulse 3s infinite',
+            }} />
+            {isComplete ? 'Restart' : demoRunning ? 'Running…' : 'Start Full Demo'}
+          </button>
+
+        </div>
+      </div>
+
+      {/* ── Page content — offset below fixed header ─────────────────────── */}
+      <div style={{ paddingTop: '58px', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
+        <div className={`mobile-device-wrapper ${aiGlow ? 'ai-glow' : ''}`}>
+          <AppInner
+            futureMode={futureMode}
+            headerCollapsed={headerCollapsed}
+            onExpand={() => setHeaderCollapsed(false)}
+          />
+          <AnimatePresence>
+            {showAuthScreen && (
+              <BiometricAuthScreen onComplete={handleAuthComplete} playing={demoPlaying} />
+            )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {showHomeScreen && (
+              <HomeScreenIntro onGlow={() => setAiGlow(true)} onComplete={handleHomeScreenComplete} playing={demoPlaying} futureMode={futureMode} />
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Platform Architecture Overlay */}
@@ -242,167 +438,15 @@ function App() {
         {showPlatformOverlay && <PlatformOverlay onClose={() => setShowPlatformOverlay(false)} />}
       </AnimatePresence>
 
-      {/* Presenter Controls */}
-      <div style={{ position: 'fixed', top: '40px', right: '40px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', zIndex: 9998 }}>
-
-        {/* Dark mode toggle */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => setDarkMode(d => !d)}
-            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            style={{
-              background: darkMode ? '#1a1a2e' : '#f0f0f0',
-              border: `1px solid ${darkMode ? '#3d3d6d' : '#ddd'}`,
-              borderRadius: '100px', padding: '10px 16px',
-              color: darkMode ? '#a0a0ff' : '#555',
-              display: 'flex', alignItems: 'center', gap: '8px',
-              cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)', transition: 'all 0.2s',
-              fontFamily: 'inherit'
-            }}
-          >
-            {darkMode ? <Sun size={15} /> : <Moon size={15} />}
-            {darkMode ? 'Light Mode' : 'Dark Mode'}
-          </button>
-        </div>
-
-        {/* Future Mode Toggle */}
-        <div
-          onClick={() => setFutureMode(f => !f)}
-          style={{
-            background: futureMode ? 'linear-gradient(135deg, #7c3aed, #00AEEF)' : '#1a1a1a',
-            border: '1px solid #3d3d3d', borderRadius: '100px',
-            padding: '10px 20px', color: 'white',
-            display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer',
-            boxShadow: futureMode ? '0 8px 30px rgba(124,58,237,0.4)' : '0 6px 20px rgba(0,0,0,0.3)',
-            transition: 'all 0.3s'
-          }}
-        >
-          <Zap size={15} fill={futureMode ? 'white' : 'none'} />
-          <span style={{ fontFamily: 'inherit', fontWeight: '600', fontSize: '0.9rem' }}>
-            {futureMode ? 'Demo Mode: 2028' : 'Demo Mode: Today'}
-          </span>
-          <div style={{ width: '36px', height: '20px', borderRadius: '100px', background: futureMode ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)', position: 'relative' }}>
-            <div style={{ width: '14px', height: '14px', background: 'white', borderRadius: '50%', position: 'absolute', top: '3px', left: futureMode ? '19px' : '3px', transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
-          </div>
-        </div>
-
-        {/* Demo button + progress */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'stretch', minWidth: '400px' }}>
-          {demoRunning && demoPhase > 0 && (
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ fontSize: '0.72rem', color: '#888', textAlign: 'right', fontFamily: 'inherit' }}>{demoPhaseLabel}</div>
-              <div style={{ height: '3px', background: '#2a2a2a', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(demoPhase / demoTotal) * 100}%`, background: 'linear-gradient(90deg, #00395D, #00AEEF)', borderRadius: '3px', transition: 'width 0.8s ease' }} />
-              </div>
-            </div>
-          )}
-          {isComplete && !demoRunning && (
-            <div style={{ fontSize: '0.72rem', color: '#4caf50', textAlign: 'right', fontFamily: 'inherit' }}>{demoPhaseLabel}</div>
-          )}
-
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
-            
-            {/* Playback Controls (visible only when running) */}
-            {(demoRunning && !isComplete) && (
-               <div style={{ display: 'flex', gap: '4px', background: '#1a1a1a', borderRadius: '100px', padding: '6px', border: '1px solid #3d3d3d', boxShadow: '0 6px 20px rgba(0,0,0,0.3)' }}>
-                 <button onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: demoPhase - 2 } }))} style={{ background: 'transparent', border: 'none', color: '#aaa', padding: '10px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.color='white'} onMouseLeave={e => e.currentTarget.style.color='#aaa'} title="Previous Scene"><Rewind size={18} /></button>
-                 <button onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'togglePlay' } }))} style={{ background: 'var(--brand-blue)', border: 'none', color: 'white', padding: '10px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,174,239,0.4)' }} onMouseEnter={e => e.currentTarget.style.transform='scale(1.05)'} onMouseLeave={e => e.currentTarget.style.transform='scale(1)'} title="Play/Pause">{demoPlaying ? <Pause size={18} fill="white" /> : <Play size={18} fill="white" />}</button>
-                 <button onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: demoPhase } }))} style={{ background: 'transparent', border: 'none', color: '#aaa', padding: '10px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.color='white'} onMouseLeave={e => e.currentTarget.style.color='#aaa'} title="Next Scene"><FastForward size={18} /></button>
-               </div>
-            )}
-
-            {/* Scene Dropdown (visible only when running) */}
-            {(demoRunning && !isComplete) && (
-              <select 
-                 onChange={(e) => {
-                    const idx = parseInt(e.target.value, 10);
-                    window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: idx } }));
-                 }}
-                 value={demoPhase > 0 ? demoPhase - 1 : ""}
-                 style={{ background: '#1a1a1a', color: '#ccc', border: '1px solid #3d3d3d', borderRadius: '100px', padding: '0 18px 0 14px', outline: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.85rem', boxShadow: '0 6px 20px rgba(0,0,0,0.3)', appearance: 'none' }}
-              >
-                 <option value="" disabled>Jump to Scene...</option>
-                 <option value={0}>1. Financial Awareness</option>
-                 <option value={1}>2. Spending Analysis</option>
-                 <option value={2}>3. Affordability</option>
-                 <option value={3}>4. Policy Guards</option>
-                 <option value={4}>5. Proactive Copilot</option>
-                 <option value={5}>6. Intelligent Support</option>
-              </select>
-            )}
-
-            {/* Start / Jump Menu (visible when idle) */}
-            {(!demoRunning || isComplete) && (
-              <select 
-                 onChange={(e) => {
-                    const idx = parseInt(e.target.value, 10);
-                    e.target.value = ""; // Reset dropdown
-                    window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: idx } }));
-                 }}
-                 value=""
-                 style={{ background: '#1a1a1a', color: '#aaa', border: '1px solid #3d3d3d', borderRadius: '100px', padding: '0 18px 0 14px', outline: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.85rem', boxShadow: '0 6px 20px rgba(0,0,0,0.3)', appearance: 'none' }}
-              >
-                 <option value="" disabled>Jump Directly To...</option>
-                 <option value={0}>1. Financial Awareness</option>
-                 <option value={1}>2. Spending Analysis</option>
-                 <option value={2}>3. Affordability</option>
-                 <option value={3}>4. Policy Guards</option>
-                 <option value={4}>5. Proactive Copilot</option>
-                 <option value={5}>6. Intelligent Support</option>
-              </select>
-            )}
-
-            {(demoRunning || demoPhaseLabel) && (
-              <button
-                onClick={handleReset}
-                title="Reset Completely"
-                style={{ background: '#1a1a1a', color: '#aaa', border: '1px solid #3d3d3d', padding: '16px', borderRadius: '100px', cursor: 'pointer', boxShadow: '0 6px 20px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.background = '#2a2a2a'; }}
-                onMouseLeave={e => { e.currentTarget.style.color = '#aaa'; e.currentTarget.style.background = '#1a1a1a'; }}
-              >
-                <RotateCcw size={18} />
-              </button>
-            )}
-            
-            <button
-              onClick={isComplete ? handleReset : handleDemoClick}
-              disabled={demoRunning && !isComplete}
-              style={{
-                background: isComplete ? '#0a2a0a' : demoRunning ? '#1a1a1a' : '#0F0F0F',
-                color: isComplete ? '#4caf50' : 'white',
-                border: `1px solid ${isComplete ? 'rgba(76,175,80,0.4)' : '#3d3d3d'}`,
-                padding: '16px 28px', borderRadius: '100px',
-                fontFamily: 'inherit', fontWeight: '600', fontSize: '1.05rem',
-                cursor: demoRunning && !isComplete ? 'default' : 'pointer',
-                boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
-                display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.3s',
-                opacity: demoRunning && !isComplete ? 0.75 : 1
-              }}
-              onMouseEnter={e => { if (!demoRunning || isComplete) e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
-            >
-              <span style={{
-                width: '12px', height: '12px',
-                background: isComplete ? '#4caf50' : demoRunning ? '#ff9800' : '#00AEEF',
-                borderRadius: '50%', display: 'inline-block',
-                animation: demoRunning && !isComplete ? 'pulseOrange 1.2s infinite' : 'pulse 3s infinite'
-              }} />
-              {isComplete ? 'Restart Full Demo' : demoRunning ? 'Running…' : 'Start Full Demo'}
-            </button>
-          </div>
-        </div>
-      </div>
-
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes pulse {
           0% { box-shadow: 0 0 0 0 rgba(0,174,239,0.6); }
-          70% { box-shadow: 0 0 0 12px rgba(0,174,239,0); }
+          70% { box-shadow: 0 0 0 10px rgba(0,174,239,0); }
           100% { box-shadow: 0 0 0 0 rgba(0,174,239,0); }
         }
         @keyframes pulseOrange {
           0% { box-shadow: 0 0 0 0 rgba(255,152,0,0.7); }
-          70% { box-shadow: 0 0 0 8px rgba(255,152,0,0); }
+          70% { box-shadow: 0 0 0 7px rgba(255,152,0,0); }
           100% { box-shadow: 0 0 0 0 rgba(255,152,0,0); }
         }
       `}} />
