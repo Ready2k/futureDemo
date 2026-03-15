@@ -134,7 +134,7 @@ function App() {
   const [demoPhase, setDemoPhase] = useState(0);
   const [demoTotal, setDemoTotal] = useState(6);
   const [demoRunning, setDemoRunning] = useState(false);
-  const [showPlatformOverlay, setShowPlatformOverlay] = useState(false);
+  const [showPlatformOverlay, setShowPlatformOverlay] = useState(true);
   const [demoPlaying, setDemoPlaying] = useState(true);
 
   // Time ticker
@@ -209,6 +209,7 @@ function App() {
     setShowAuthScreen(false);
     setAiGlow(false);
     setHeaderCollapsed(false);
+    setDemoPlaying(true);
     window.dispatchEvent(new CustomEvent('RESET_CHAT'));
   };
 
@@ -242,7 +243,7 @@ function App() {
       </AnimatePresence>
 
       {/* Presenter Controls */}
-      <div style={{ position: 'fixed', bottom: '40px', right: '40px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', zIndex: 9998 }}>
+      <div style={{ position: 'fixed', top: '40px', right: '40px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end', zIndex: 9998 }}>
 
         {/* Dark mode toggle */}
         <div style={{ display: 'flex', gap: '8px' }}>
