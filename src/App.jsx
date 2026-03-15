@@ -7,7 +7,8 @@ import { PlatformOverlay } from './components/PlatformOverlay';
 import { HomeScreenIntro } from './components/HomeScreenIntro';
 import { BiometricAuthScreen } from './components/BiometricAuthScreen';
 import { useBanking } from './context/BankingContext';
-import { Home, ArrowLeftRight, CreditCard, MessageCircle, Wifi, BatteryMedium, Signal, Zap, RotateCcw, ChevronDown, Sun, Moon, Play, Pause, FastForward, Rewind, List } from 'lucide-react';
+import { Home, ArrowLeftRight, CreditCard, MessageCircle, Wifi, BatteryMedium, Signal, Zap, RotateCcw, ChevronDown, Sun, Moon, Play, Pause, FastForward, Rewind, List, Columns2 } from 'lucide-react';
+import { ComparisonAdvisor } from './components/ComparisonAdvisor';
 
 // Thin ambient header shown when header is collapsed
 const CollapsedHeader = ({ time, futureMode, totalWealth, onExpand }) => (
@@ -125,6 +126,7 @@ function AppInner({ futureMode, headerCollapsed, onExpand }) {
 
 function App() {
   const [futureMode, setFutureMode] = useState(false);
+  const [comparisonMode, setComparisonMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [showHomeScreen, setShowHomeScreen] = useState(false);
@@ -150,16 +152,24 @@ function App() {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
-  // Scale phone to always fit full height in viewport
+  // Scale phone to always fit full height (and width in comparison mode)
   useEffect(() => {
     const setZoom = () => {
-      const scale = Math.min(1, (window.innerHeight - 90) / 844);
-      document.documentElement.style.setProperty('--phone-zoom', scale);
+      const heightScale = (window.innerHeight - 90) / 844;
+      let scale;
+      if (comparisonMode) {
+        // Two phones (390px each) + advisor (264px) + gaps (3 × 16px) + side padding (40px)
+        const widthScale = (window.innerWidth - 264 - 48 - 40) / (2 * 390);
+        scale = Math.min(1, heightScale, widthScale);
+      } else {
+        scale = Math.min(1, heightScale);
+      }
+      document.documentElement.style.setProperty('--phone-zoom', Math.max(0.38, scale));
     };
     setZoom();
     window.addEventListener('resize', setZoom);
     return () => window.removeEventListener('resize', setZoom);
-  }, []);
+  }, [comparisonMode]);
 
   // Collapse header when user sends first message
   useEffect(() => {
@@ -199,10 +209,17 @@ function App() {
     if (demoRunning) return;
     setDemoRunning(true);
     setShowPlatformOverlay(false);
-    setDemoPhaseLabel('Scene 0 — Ambient Entry');
-    setDemoPhase(0);
-    // Show home screen first — it fires START_AUTOPILOT_DEMO on completion
-    setShowHomeScreen(true);
+    if (comparisonMode) {
+      // Skip home/auth sequence in comparison mode — start autopilot on both phones directly
+      setDemoPhaseLabel('Starting…');
+      setDemoPhase(1);
+      window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO', { detail: { pendingQuery: null } }));
+    } else {
+      setDemoPhaseLabel('Scene 0 — Ambient Entry');
+      setDemoPhase(0);
+      // Show home screen first — it fires START_AUTOPILOT_DEMO on completion
+      setShowHomeScreen(true);
+    }
   };
 
   const handleHomeScreenComplete = (query) => {
@@ -321,6 +338,25 @@ function App() {
             </div>
           </div>
 
+          {/* Compare mode */}
+          <div
+            onClick={() => setComparisonMode(c => !c)}
+            style={{
+              background: comparisonMode ? 'rgba(0,174,239,0.15)' : '#1a1a1a',
+              border: `1px solid ${comparisonMode ? 'rgba(0,174,239,0.4)' : '#272727'}`,
+              borderRadius: '100px', padding: '7px 14px', color: comparisonMode ? '#00AEEF' : '#555',
+              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+              fontSize: '0.78rem', fontFamily: 'inherit',
+              transition: 'all 0.25s',
+            }}
+          >
+            <Columns2 size={13} />
+            <span>Compare</span>
+            <div style={{ width: '26px', height: '15px', borderRadius: '100px', background: 'rgba(255,255,255,0.1)', position: 'relative', flexShrink: 0 }}>
+              <div style={{ width: '11px', height: '11px', background: comparisonMode ? '#00AEEF' : '#333', borderRadius: '50%', position: 'absolute', top: '2px', left: comparisonMode ? '13px' : '2px', transition: 'left 0.25s, background 0.25s', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
+            </div>
+          </div>
+
           <div style={{ width: '1px', height: '24px', background: '#1e1e1e' }} />
 
           {/* Playback controls — while running */}
@@ -433,29 +469,84 @@ function App() {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         boxSizing: 'border-box',
         background: 'radial-gradient(ellipse at 50% 56%, rgba(0,57,93,0.22) 0%, rgba(0,174,239,0.04) 35%, transparent 65%)',
+        gap: '16px',
+        padding: '58px 20px 0',
       }}>
-        <div className={`mobile-device-wrapper ${aiGlow ? 'ai-glow' : ''}`}>
-          <AppInner
-            futureMode={futureMode}
-            headerCollapsed={headerCollapsed}
-            onExpand={() => setHeaderCollapsed(false)}
-          />
-          {/* Black backdrop — covers AppInner for the full Scene 0 sequence so
-              account data never shows through between overlay transitions */}
-          {(showHomeScreen || showAuthScreen) && (
-            <div style={{ position: 'absolute', inset: 0, zIndex: 1050, background: '#000' }} />
-          )}
-          <AnimatePresence>
-            {showAuthScreen && (
-              <BiometricAuthScreen onComplete={handleAuthComplete} playing={demoPlaying} />
+
+        {comparisonMode ? (
+          /* ── Comparison layout: Today | Advisor | Future ── */
+          <>
+            {/* Today phone */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <div style={{
+                fontSize: '0.6rem', fontWeight: '800', letterSpacing: '0.18em',
+                color: '#00AEEF', textTransform: 'uppercase',
+                background: 'rgba(0,174,239,0.08)', border: '1px solid rgba(0,174,239,0.2)',
+                borderRadius: '100px', padding: '3px 12px',
+              }}>
+                Today
+              </div>
+              <BankingProvider>
+                <div className="mobile-device-wrapper">
+                  <AppInner
+                    futureMode={false}
+                    headerCollapsed={headerCollapsed}
+                    onExpand={() => setHeaderCollapsed(false)}
+                  />
+                </div>
+              </BankingProvider>
+            </div>
+
+            {/* Comparison advisor */}
+            <ComparisonAdvisor phase={demoPhase} running={demoRunning} />
+
+            {/* Future / 2028 phone */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <div style={{
+                fontSize: '0.6rem', fontWeight: '800', letterSpacing: '0.18em',
+                color: '#a78bfa', textTransform: 'uppercase',
+                background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)',
+                borderRadius: '100px', padding: '3px 12px',
+              }}>
+                2028
+              </div>
+              <BankingProvider>
+                <div className="mobile-device-wrapper">
+                  <AppInner
+                    futureMode={true}
+                    headerCollapsed={headerCollapsed}
+                    onExpand={() => setHeaderCollapsed(false)}
+                  />
+                </div>
+              </BankingProvider>
+            </div>
+          </>
+        ) : (
+          /* ── Single phone layout (default) ── */
+          <div className={`mobile-device-wrapper ${aiGlow ? 'ai-glow' : ''}`}>
+            <AppInner
+              futureMode={futureMode}
+              headerCollapsed={headerCollapsed}
+              onExpand={() => setHeaderCollapsed(false)}
+            />
+            {/* Black backdrop — covers AppInner for the full Scene 0 sequence so
+                account data never shows through between overlay transitions */}
+            {(showHomeScreen || showAuthScreen) && (
+              <div style={{ position: 'absolute', inset: 0, zIndex: 1050, background: '#000' }} />
             )}
-          </AnimatePresence>
-          <AnimatePresence>
-            {showHomeScreen && (
-              <HomeScreenIntro onGlow={() => setAiGlow(true)} onComplete={handleHomeScreenComplete} playing={demoPlaying} futureMode={futureMode} />
-            )}
-          </AnimatePresence>
-        </div>
+            <AnimatePresence>
+              {showAuthScreen && (
+                <BiometricAuthScreen onComplete={handleAuthComplete} playing={demoPlaying} />
+              )}
+            </AnimatePresence>
+            <AnimatePresence>
+              {showHomeScreen && (
+                <HomeScreenIntro onGlow={() => setAiGlow(true)} onComplete={handleHomeScreenComplete} playing={demoPlaying} futureMode={futureMode} />
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
       </div>
 
       {/* Platform Architecture Overlay */}
