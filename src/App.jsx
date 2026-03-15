@@ -288,7 +288,7 @@ function App() {
         </div>
 
         {/* Demo button + progress */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'stretch', minWidth: '400px' }}>
           {demoRunning && demoPhase > 0 && (
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div style={{ fontSize: '0.72rem', color: '#888', textAlign: 'right', fontFamily: 'inherit' }}>{demoPhaseLabel}</div>
@@ -301,7 +301,7 @@ function App() {
             <div style={{ fontSize: '0.72rem', color: '#4caf50', textAlign: 'right', fontFamily: 'inherit' }}>{demoPhaseLabel}</div>
           )}
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
             
             {/* Playback Controls (visible only when running) */}
             {(demoRunning && !isComplete) && (
