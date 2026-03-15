@@ -276,7 +276,7 @@ function App() {
 
         {/* Left — branding */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#00AEEF', letterSpacing: '0.18em', textTransform: 'uppercase' }}>Ambient Banking</span>
+          <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#00AEEF', letterSpacing: '0.18em', textTransform: 'uppercase' }}>Future Banking</span>
           <div style={{ width: '1px', height: '14px', background: '#2a2a2a' }} />
           <span style={{ fontSize: '0.68rem', color: '#444', letterSpacing: '0.05em' }}>Presenter Demo</span>
         </div>

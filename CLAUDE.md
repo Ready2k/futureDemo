@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-**Ambient Banking Assistant** — a strategic product demo simulating an AI-native banking experience where natural language replaces app navigation. The product concept is a financial copilot, not a chatbot. It understands intent, reasons over financial context, applies policy guardrails, executes safe banking actions, and provides proactive behavioural insights. The demo is designed to make stakeholders think *"This feels like the future of banking"* and must land in under 3 minutes.
+**Example Future Banking Assistant** — a strategic product demo simulating an AI-native banking experience where natural language replaces app navigation. The product concept is a financial copilot, not a chatbot. It understands intent, reasons over financial context, applies policy guardrails, executes safe banking actions, and provides proactive behavioural insights. The demo is designed to make stakeholders think *"This feels like the future of banking"* and must land in under 3 minutes.
 
 This is a **fully client-side, no-backend** React + Vite application. All assistant responses, reasoning steps, charts, and insight cards are deterministic and pre-authored. There is no live LLM or API call anywhere in the system.
 

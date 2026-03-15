@@ -1,4 +1,4 @@
-# Ambient Banking Assistant — Demo
+# Example Future Banking Assistant — Demo
 
 > **Not production banking software.** This is a strategic product demo built to illustrate what an AI-native banking experience could look like. It contains no real financial data, no live APIs, and makes no actual transactions.
 
