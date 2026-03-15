@@ -57,7 +57,7 @@ export const BiometricAuthScreen = ({ onComplete, playing }) => {
       animate={{ opacity: phase === 3 ? 0 : 1 }}
       transition={{ duration: 0.45 }}
       style={{
-        position: 'absolute', inset: 0, zIndex: 400,
+        position: 'absolute', inset: 0, zIndex: 1100,
         background: '#000',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',

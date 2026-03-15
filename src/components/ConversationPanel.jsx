@@ -84,7 +84,17 @@ export const ConversationPanel = ({ futureMode }) => {
   const [currentTrace, setCurrentTrace] = useState(null);
 
   const futureModeRef = useRef(futureMode);
-  useEffect(() => { futureModeRef.current = futureMode; }, [futureMode]);
+  const [showFutureBanner, setShowFutureBanner] = useState(false);
+  useEffect(() => {
+    futureModeRef.current = futureMode;
+    if (futureMode) {
+      setShowFutureBanner(true);
+      const t = setTimeout(() => setShowFutureBanner(false), 4000);
+      return () => clearTimeout(t);
+    } else {
+      setShowFutureBanner(false);
+    }
+  }, [futureMode]);
 
   const makeInitialMsg = () => ({
     id: 1, role: 'assistant',
@@ -241,10 +251,11 @@ export const ConversationPanel = ({ futureMode }) => {
       demoCore.current.playing = true;
       demoCore.current.skip = false;
       demoCore.current.target = null;
-      
+
       window.dispatchEvent(new CustomEvent('AUTOPILOT_PLAY_STATE', { detail: { playing: true } }));
 
       let i = e?.detail?.startIndex || 0;
+      let siriHandoff = e?.detail?.pendingQuery || null; // consumed once for seamless 2028 handoff
 
       const wait = async (ms) => {
         let elapsed = 0;
@@ -355,10 +366,18 @@ export const ConversationPanel = ({ futureMode }) => {
                   setIsTyping(true);
                   await wait(800);
                   setIsTyping(false);
-                  addMessage('user', 'Chat with fraud specialist.');
                   processInputRef.current('Chat with fraud specialist.');
                 } else {
-                  for (const query of scene.queries) { await typeText(query); }
+                  for (const query of scene.queries) {
+                    if (siriHandoff) {
+                      siriHandoff = null; // consume — Siri already captured this query
+                      await wait(500);
+                      processInputRef.current(query);
+                      await wait(2200);
+                    } else {
+                      await typeText(query);
+                    }
+                  }
                 }
                 
                 await wait(scene.readTime);
@@ -983,12 +1002,22 @@ export const ConversationPanel = ({ futureMode }) => {
 
       {/* Input bar */}
       <div style={{ padding: '0.75rem 1rem 1rem', borderTop: '1px solid var(--divider)', background: 'var(--bg-secondary)' }}>
-        {futureMode && (
-          <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '600', textAlign: 'center', marginBottom: '6px', letterSpacing: '0.03em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#7c3aed', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
-            On-device SLM · Cloud reasoning · Continuous biometric session · Zero friction
-          </div>
-        )}
+        <AnimatePresence>
+          {showFutureBanner && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginBottom: 6 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.4 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '600', textAlign: 'center', letterSpacing: '0.03em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#7c3aed', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+                On-device SLM · Cloud reasoning · Continuous biometric session · Zero friction
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="chat-input-wrap">
           <input
             value={input}

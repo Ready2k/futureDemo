@@ -71,7 +71,8 @@
 
 body {
   font-family: var(--font-family);
-  background-color: var(--bg-page);
+  /* Presenter stage — always dark regardless of app light/dark mode */
+  background: #080d14;
   color: var(--text-primary);
   line-height: 1.5;
   min-height: 100vh;
@@ -79,7 +80,6 @@ body {
   align-items: center;
   justify-content: center;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.3s, color 0.3s;
 }
 
 /* Hide scrollbar on mobile scroll areas */
@@ -98,6 +98,7 @@ body {
     0 20px 50px rgba(0,0,0,0.5);
   border-radius: 48px;
   margin: 2rem auto;
+  zoom: var(--phone-zoom, 1);
 }
 
 /* Dynamic Island */

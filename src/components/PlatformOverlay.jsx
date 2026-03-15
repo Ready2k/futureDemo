@@ -4,7 +4,7 @@ import { X, Layers, TrendingUp, ShieldCheck, Landmark } from 'lucide-react';
 
 const LAYERS = [
   { label: 'User Interface',          sub: 'Mobile · Voice · Wearable · Web',                          color: '#00AEEF' },
-  { label: 'AI Intent Engine',        sub: 'NL Classification · Entity Extraction · Context Resolution', color: '#0077aa' },
+  { label: 'Agentic AI Orchestration', sub: 'Intent Routing · Tool Selection · Multi-step Reasoning',     color: '#0077aa' },
   { label: 'Financial Context Graph', sub: 'Account Data · Spending Patterns · Goals · History',         color: '#005580' },
   { label: 'Policy & Risk Guardrails',sub: 'Compliance Rules · Fraud Scoring · Audit Trail',             color: '#003d66' },
   { label: 'Bank Capability APIs',    sub: 'Payments · Transfers · Products · Data',                     color: '#00264d' },
@@ -18,11 +18,10 @@ const BANK_ADVANTAGES = [
 ];
 
 const WHY_MATTERS = [
-  { icon: TrendingUp, label: 'Daily engagement',          detail: 'Monthly logins become daily AI touchpoints — the most valuable shift in banking UX in a decade', primary: true },
-  { icon: Layers,     label: 'Financial insights platform',detail: 'Proprietary behavioural data at scale — the raw material for advisory and product intelligence'    },
-  { icon: TrendingUp, label: 'New advisory revenue',      detail: 'AI-surfaced products in context, not push campaigns — higher conversion, lower acquisition cost'    },
-  { icon: ShieldCheck,label: 'Reduced operational cost',  detail: 'AI resolves most intents autonomously; humans handle only escalations'                              },
-  { icon: Landmark,   label: 'AI-native positioning',     detail: 'Moves the bank ahead of device ecosystem entrants before the interface layer is conceded'          },
+  { icon: TrendingUp, label: 'Daily engagement',           detail: 'Monthly logins become daily AI touchpoints — the most valuable shift in banking UX in a decade', primary: true },
+  { icon: Layers,     label: 'Financial insights platform', detail: 'Proprietary behavioural data at scale — the raw material for advisory and product intelligence'    },
+  { icon: TrendingUp, label: 'New advisory revenue',        detail: 'AI-surfaced products in context, not push campaigns — higher conversion, lower acquisition cost'    },
+  { icon: ShieldCheck,label: 'Reduced operational cost',    detail: 'AI resolves most intents autonomously; humans handle only escalations'                              },
 ];
 
 
@@ -159,7 +158,7 @@ export const PlatformOverlay = ({ onClose }) => {
           <p style={{ fontSize: '0.75rem', fontWeight: '700', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--overlay-muted)', marginBottom: '1.25rem', textAlign: 'center' }}>
             Why This Matters for Banks
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
             {WHY_MATTERS.map((item, i) => (
               <motion.div
                 key={item.label}
@@ -218,7 +217,7 @@ export const PlatformOverlay = ({ onClose }) => {
             >
               {f.highlight && (
                 <div style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(90deg, #00395D, #00AEEF)', borderRadius: '100px', padding: '2px 12px', fontSize: '0.65rem', fontWeight: '800', color: 'white', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
-                  BANK ADVANTAGE
+                  STRATEGIC IMPERATIVE
                 </div>
               )}
               <div style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>{f.emoji}</div>
@@ -236,7 +235,7 @@ export const PlatformOverlay = ({ onClose }) => {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--overlay-muted)' }}>
-          The question isn't which is right. The question is: which are you building for?
+          The interface layer is being claimed. The only question is whether banks claim it first.
         </p>
       </motion.div>
     </motion.div>

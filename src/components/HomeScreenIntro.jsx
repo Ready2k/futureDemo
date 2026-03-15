@@ -108,7 +108,7 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
       { t: T_BAR,           fn: bump(2) },
       { t: T_TYPE,          fn: bump(3, startTyping) },
       { t: T_EXIT_FUTURE,   fn: () => setExiting(true) },
-      { t: T_FINISH_FUTURE, fn: onComplete },
+      { t: T_FINISH_FUTURE, fn: () => onComplete(QUERY) },
     ] : [
       // Today: glow activates (Siri attempts) but no outer device glow
       { t: T_GLOW,          fn: bump(1) },
@@ -170,7 +170,7 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
       animate={{ opacity: exiting ? 0 : 1 }}
       transition={{ duration: exiting ? 0.85 : 0.45 }}
       style={{
-        position: 'absolute', inset: 0, zIndex: 500,
+        position: 'absolute', inset: 0, zIndex: 1100,
         background: 'linear-gradient(165deg, #08061a 0%, #130e36 50%, #0c1828 100%)',
         display: 'flex', flexDirection: 'column',
         fontFamily: "'Open Sans', sans-serif",

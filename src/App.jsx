@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BankingProvider } from './context/BankingContext';
 import { FinancialSummaryCard } from './components/FinancialSummaryCard';
@@ -129,6 +129,7 @@ function App() {
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [showHomeScreen, setShowHomeScreen] = useState(false);
   const [showAuthScreen, setShowAuthScreen] = useState(false);
+  const pendingQueryRef = useRef(null);
   const [aiGlow, setAiGlow] = useState(false);
   const [demoPhaseLabel, setDemoPhaseLabel] = useState(null);
   const [demoPhase, setDemoPhase] = useState(0);
@@ -148,6 +149,17 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+
+  // Scale phone to always fit full height in viewport
+  useEffect(() => {
+    const setZoom = () => {
+      const scale = Math.min(1, (window.innerHeight - 90) / 844);
+      document.documentElement.style.setProperty('--phone-zoom', scale);
+    };
+    setZoom();
+    window.addEventListener('resize', setZoom);
+    return () => window.removeEventListener('resize', setZoom);
+  }, []);
 
   // Collapse header when user sends first message
   useEffect(() => {
@@ -193,10 +205,11 @@ function App() {
     setShowHomeScreen(true);
   };
 
-  const handleHomeScreenComplete = () => {
+  const handleHomeScreenComplete = (query) => {
     setShowHomeScreen(false);
     setAiGlow(false);
     setDemoPhaseLabel('Scene 0 — Authenticating…');
+    pendingQueryRef.current = query || null;
     setShowAuthScreen(true);
   };
 
@@ -204,7 +217,8 @@ function App() {
     setShowAuthScreen(false);
     setDemoPhaseLabel('Starting…');
     setDemoPhase(1);
-    window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO'));
+    window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO', { detail: { pendingQuery: pendingQueryRef.current } }));
+    pendingQueryRef.current = null;
   };
 
   const handleReset = () => {
@@ -237,7 +251,8 @@ function App() {
       {/* ── Presenter Header Bar ──────────────────────────────────────────── */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9998,
-        background: '#0F0F0F', borderBottom: '1px solid #1e1e1e',
+        background: 'rgba(8,13,20,0.92)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
         height: '58px', display: 'flex', alignItems: 'center',
         padding: '0 20px', gap: '12px', fontFamily: 'inherit',
       }}>
@@ -413,13 +428,23 @@ function App() {
       </div>
 
       {/* ── Page content — offset below fixed header ─────────────────────── */}
-      <div style={{ paddingTop: '58px', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
+      <div style={{
+        paddingTop: '58px', height: '100vh',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxSizing: 'border-box',
+        background: 'radial-gradient(ellipse at 50% 56%, rgba(0,57,93,0.22) 0%, rgba(0,174,239,0.04) 35%, transparent 65%)',
+      }}>
         <div className={`mobile-device-wrapper ${aiGlow ? 'ai-glow' : ''}`}>
           <AppInner
             futureMode={futureMode}
             headerCollapsed={headerCollapsed}
             onExpand={() => setHeaderCollapsed(false)}
           />
+          {/* Black backdrop — covers AppInner for the full Scene 0 sequence so
+              account data never shows through between overlay transitions */}
+          {(showHomeScreen || showAuthScreen) && (
+            <div style={{ position: 'absolute', inset: 0, zIndex: 1050, background: '#000' }} />
+          )}
           <AnimatePresence>
             {showAuthScreen && (
               <BiometricAuthScreen onComplete={handleAuthComplete} playing={demoPlaying} />
