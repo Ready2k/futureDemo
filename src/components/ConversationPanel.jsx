@@ -102,7 +102,7 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
   const makeInitialMsg = () => ({
     id: 1, role: 'assistant',
     text: futureModeRef.current
-      ? "Good morning James. You have £8,240 across your Barclays and NatWest accounts, with £160 discretionary this month after bills and savings. I'm already tracking a restaurant spend spike — you're 47% above your 3-month average. Where would you like to start?"
+      ? "Good morning Joe. You have £8,240 across your Barclays and NatWest accounts, with £160 discretionary this month after bills and savings. I'm already tracking a restaurant spend spike — you're 47% above your 3-month average. Where would you like to start?"
       : "Hello! I can help you check your balances, make transfers, or analyze if you can afford that new purchase. What's on your mind?"
   });
 
@@ -229,11 +229,11 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
       }
       if (action === 'jump') {
         if (!demoCore.current.active) {
-            // Start it at specific index if not running
-            window.dispatchEvent(new CustomEvent(startEventName, { detail: { startIndex: e.detail.index } }));
+          // Start it at specific index if not running
+          window.dispatchEvent(new CustomEvent(startEventName, { detail: { startIndex: e.detail.index } }));
         } else {
-            demoCore.current.target = Math.max(0, Math.min(5, e.detail.index));
-            demoCore.current.skip = true;
+          demoCore.current.target = Math.max(0, Math.min(5, e.detail.index));
+          demoCore.current.skip = true;
         }
       }
       if (action === 'stop') {
@@ -246,12 +246,12 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
 
   useEffect(() => {
     const SCENES = [
-      { label: 'Scene 1 of 6 — Financial Awareness',    queries: ['How much money can I spend this month?'],        introTypedQuery: 'How much money can I spend this month?',       introVoiceQuery: 'Hey Siri, how much can I spend this month?',                             readTime: 18000 },
-      { label: 'Scene 2 of 6 — Spending Insight',       queries: ['Where does my money go each month?'],           introTypedQuery: 'Where does my money go each month?',           introVoiceQuery: 'Hey Siri, where does all my money go?',                                 readTime: 18000 },
-      { label: 'Scene 3 of 6 — Affordability Reasoning',queries: ['Can I afford a £900 holiday?'],                 introTypedQuery: 'Can I afford a £900 holiday?',                 introVoiceQuery: 'Hey Siri, I want to go on holiday — can I afford it? About £900.',      readTime: 18000 },
-      { label: 'Scene 4 of 6 — Safe Transfer',          queries: ['Move £600 from savings to current.'],           introTypedQuery: 'Move £600 from savings to current',            introVoiceQuery: 'Hey Siri, move £600 from my savings to my current account',             readTime: 20000, accountSelect: true },
-      { label: 'Scene 5 of 6 — Behavioural Intelligence',queries: null, readTime: 16000, proactive: true },
-      { label: 'Scene 6 of 6 — Intelligent Support',    queries: ['What is this £85 charge from Northline Services?'], introTypedQuery: 'What is this £85 charge from Northline Services?', introVoiceQuery: "Hey Siri, what's this £85 charge on my account from Northline?", readTime: 24000, multiStep: true },
+      { label: 'Scene 1 of 6 — Financial Awareness', queries: ['How much money can I spend this month?'], introTypedQuery: 'How much money can I spend this month?', introVoiceQuery: 'Hey Siri, how much can I spend this month?', readTime: 18000 },
+      { label: 'Scene 2 of 6 — Spending Insight', queries: ['Where does my money go each month?'], introTypedQuery: 'Where does my money go each month?', introVoiceQuery: 'Hey Siri, where does all my money go?', readTime: 18000 },
+      { label: 'Scene 3 of 6 — Affordability Reasoning', queries: ['Can I afford a £900 holiday?'], introTypedQuery: 'Can I afford a £900 holiday?', introVoiceQuery: 'Hey Siri, I want to go on holiday — can I afford it? About £900.', readTime: 18000 },
+      { label: 'Scene 4 of 6 — Safe Transfer', queries: ['Move £600 from savings to current.'], introTypedQuery: 'Move £600 from savings to current', introVoiceQuery: 'Hey Siri, move £600 from my savings to my current account', readTime: 20000, accountSelect: true },
+      { label: 'Scene 5 of 6 — Behavioural Intelligence', queries: null, readTime: 16000, proactive: true },
+      { label: 'Scene 6 of 6 — Intelligent Support', queries: ['What is this £85 charge from Northline Services?'], introTypedQuery: 'What is this £85 charge from Northline Services?', introVoiceQuery: "Hey Siri, what's this £85 charge on my account from Northline?", readTime: 24000, multiStep: true },
     ];
 
     const dispatch = (label, extra = {}) =>
@@ -307,8 +307,8 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
           await wait(800);
         } else {
           for (let j = 0; j <= text.length; j++) {
-             setInput(text.substring(0, j));
-             await wait(24);
+            setInput(text.substring(0, j));
+            await wait(24);
           }
           await wait(300);
         }
@@ -330,120 +330,120 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
 
       try {
         while (i < SCENES.length && demoCore.current.active) {
-            const scene = SCENES[i];
-            
-            try {
-                // Show HomeScreen intro + BiometricAuth before every scene (except proactive)
-                if (!scene.proactive) {
-                  await waitForIntro(i, scene.introTypedQuery, scene.introVoiceQuery);
-                }
-                resetChat();
-                dispatch(scene.label, { phase: i + 1, total: SCENES.length });
-                await wait(700);
-                setMessages([makeInitialMsg(), { id: Date.now(), role: 'assistant', text: null, card: sceneCard(scene) }]);
-                await wait(1800);
+          const scene = SCENES[i];
 
-                if (scene.proactive) {
-                  const is2028 = futureModeRef.current;
-                  const insightCard = (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                        <div style={{ width: '8px', height: '8px', background: '#f59e0b', borderRadius: '50%', boxShadow: '0 0 6px rgba(245,158,11,0.6)' }} />
-                        <span style={{ fontWeight: '700', fontSize: '0.85rem', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Behavioural Insight</span>
-                        <span style={{ marginLeft: 'auto', fontSize: '0.65rem', fontWeight: '700', background: is2028 ? 'linear-gradient(90deg, #7c3aed, #00AEEF)' : 'rgba(245,158,11,0.15)', color: is2028 ? 'white' : '#b45309', padding: '2px 8px', borderRadius: '100px' }}>{is2028 ? '⚡ 2028 — Continuous monitoring' : '3-month trend'}</span>
-                      </div>
-                      {is2028 && (
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '0.75rem', padding: '6px 10px', background: 'rgba(124,58,237,0.06)', borderRadius: '8px', border: '1px solid rgba(124,58,237,0.15)' }}>
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', animation: 'pulse 1.5s infinite' }} />
-                          <span style={{ fontSize: '0.72rem', color: '#9c6fef' }}>On-device SLM detected anomaly · Spending Intelligence LLM confirmed · Alert surfaced proactively</span>
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', marginBottom: '1rem', height: '48px' }}>
-                        {[{ m: 'Jan', v: 265 }, { m: 'Feb', v: 298 }, { m: 'Mar', v: 420 }].map(({ m, v }) => (
-                          <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                            <div style={{ width: '100%', background: v === 420 ? '#f59e0b' : 'rgba(245,158,11,0.25)', borderRadius: '4px 4px 0 0', height: `${(v / 420) * 42}px`, transition: 'height 0.4s' }} />
-                            <span style={{ fontSize: '0.65rem', color: '#aaa' }}>{m}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1rem' }}>
-                        <p style={{ fontSize: '1rem', fontWeight: '600', color: '#78350f', marginBottom: '0.5rem' }}>
-                          Restaurant spending up <strong>+58%</strong> over 3 months.
-                        </p>
-                        <p style={{ fontSize: '0.88rem', color: '#92400e', lineHeight: 1.6 }}>
-                          Jan £265 → Feb £298 → Mar <strong>£420</strong><br />
-                          {is2028
-                            ? <>This month is 47% above your 3-month average. <strong>I've drafted a suggested budget adjustment</strong> — I'll alert you when you approach 80% of any category limit.</>
-                            : <>This month alone is 46% above your 3-month average.<br />Would you like me to set a dining limit or adjust your budget?</>
-                          }
-                        </p>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button style={{ flex: 1, padding: '11px', background: is2028 ? 'linear-gradient(135deg, #7c3aed, #00395D)' : '#00395D', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer' }}>{is2028 ? 'Apply Budget Adjustment' : 'Set Dining Limit'}</button>
-                        <button style={{ flex: 1, padding: '11px', background: 'rgba(0,0,0,0.04)', color: 'var(--text-secondary)', border: '1px solid #ddd', borderRadius: '10px', fontWeight: '500', fontSize: '0.9rem', cursor: 'pointer' }}>Dismiss</button>
-                      </div>
-                      {!is2028 && (
-                        <button style={{ width: '100%', marginTop: '0.6rem', padding: '10px', background: 'transparent', color: '#00395D', border: '1px solid rgba(0,57,93,0.2)', borderRadius: '10px', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>
-                          Monitor Dining Spend
-                        </button>
-                      )}
-                    </div>
-                  );
-                  await wait(1000);
-                  setIsTyping(true);
-                  await wait(1800);
-                  setIsTyping(false);
-                  setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', text: is2028 ? "I've been monitoring your spending patterns continuously. Your restaurant category crossed my anomaly threshold this week — you're 47% above your 3-month baseline and trending higher. I've already drafted a budget adjustment for your review." : "I've noticed your restaurant spending has been trending upward over the past three months. This is the kind of pattern that's easy to miss month-to-month but adds up quickly.", card: insightCard }]);
-                } else if (scene.multiStep) {
-                  await typeText(scene.queries[0]);
-                  await wait(5000); 
-                  await typeText("I don't recognise this.");
-                  await wait(7000); 
-                  setIsTyping(true);
-                  await wait(800);
-                  setIsTyping(false);
-                  processInputRef.current('Chat with fraud specialist.');
-                } else if (scene.accountSelect) {
-                  if (futureModeRef.current) {
-                    // Future mode: AI selects source automatically — single query
-                    await typeText(scene.queries[0]);
-                  } else {
-                    // Today mode: ambiguous — disambiguation card appears, then user picks Barclays
-                    await typeText(scene.queries[0]);
-                    await wait(3500);
-                    await typeText('Barclays savings please.');
-                    await wait(3500);
-                  }
-                } else {
-                  for (const query of scene.queries) {
-                    await typeText(query);
-                  }
-                }
-                
-                await wait(scene.readTime);
-                i++;
-            } catch (err) {
-                if (err.message === 'Abort') throw err;
-                if (err.message === 'Skip') {
-                   demoCore.current.skip = false;
-                   if (demoCore.current.target !== null) {
-                       i = demoCore.current.target;
-                       demoCore.current.target = null;
-                   } else {
-                       i++; // Default skip to next if no target
-                   }
-                }
+          try {
+            // Show HomeScreen intro + BiometricAuth before every scene (except proactive)
+            if (!scene.proactive) {
+              await waitForIntro(i, scene.introTypedQuery, scene.introVoiceQuery);
             }
+            resetChat();
+            dispatch(scene.label, { phase: i + 1, total: SCENES.length });
+            await wait(700);
+            setMessages([makeInitialMsg(), { id: Date.now(), role: 'assistant', text: null, card: sceneCard(scene) }]);
+            await wait(1800);
+
+            if (scene.proactive) {
+              const is2028 = futureModeRef.current;
+              const insightCard = (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <div style={{ width: '8px', height: '8px', background: '#f59e0b', borderRadius: '50%', boxShadow: '0 0 6px rgba(245,158,11,0.6)' }} />
+                    <span style={{ fontWeight: '700', fontSize: '0.85rem', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Behavioural Insight</span>
+                    <span style={{ marginLeft: 'auto', fontSize: '0.65rem', fontWeight: '700', background: is2028 ? 'linear-gradient(90deg, #7c3aed, #00AEEF)' : 'rgba(245,158,11,0.15)', color: is2028 ? 'white' : '#b45309', padding: '2px 8px', borderRadius: '100px' }}>{is2028 ? '⚡ 2028 — Continuous monitoring' : '3-month trend'}</span>
+                  </div>
+                  {is2028 && (
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '0.75rem', padding: '6px 10px', background: 'rgba(124,58,237,0.06)', borderRadius: '8px', border: '1px solid rgba(124,58,237,0.15)' }}>
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', animation: 'pulse 1.5s infinite' }} />
+                      <span style={{ fontSize: '0.72rem', color: '#9c6fef' }}>On-device SLM detected anomaly · Spending Intelligence LLM confirmed · Alert surfaced proactively</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', marginBottom: '1rem', height: '48px' }}>
+                    {[{ m: 'Jan', v: 265 }, { m: 'Feb', v: 298 }, { m: 'Mar', v: 420 }].map(({ m, v }) => (
+                      <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ width: '100%', background: v === 420 ? '#f59e0b' : 'rgba(245,158,11,0.25)', borderRadius: '4px 4px 0 0', height: `${(v / 420) * 42}px`, transition: 'height 0.4s' }} />
+                        <span style={{ fontSize: '0.65rem', color: '#aaa' }}>{m}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1rem' }}>
+                    <p style={{ fontSize: '1rem', fontWeight: '600', color: '#78350f', marginBottom: '0.5rem' }}>
+                      Restaurant spending up <strong>+58%</strong> over 3 months.
+                    </p>
+                    <p style={{ fontSize: '0.88rem', color: '#92400e', lineHeight: 1.6 }}>
+                      Jan £265 → Feb £298 → Mar <strong>£420</strong><br />
+                      {is2028
+                        ? <>This month is 47% above your 3-month average. <strong>I've drafted a suggested budget adjustment</strong> — I'll alert you when you approach 80% of any category limit.</>
+                        : <>This month alone is 46% above your 3-month average.<br />Would you like me to set a dining limit or adjust your budget?</>
+                      }
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button style={{ flex: 1, padding: '11px', background: is2028 ? 'linear-gradient(135deg, #7c3aed, #00395D)' : '#00395D', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer' }}>{is2028 ? 'Apply Budget Adjustment' : 'Set Dining Limit'}</button>
+                    <button style={{ flex: 1, padding: '11px', background: 'rgba(0,0,0,0.04)', color: 'var(--text-secondary)', border: '1px solid #ddd', borderRadius: '10px', fontWeight: '500', fontSize: '0.9rem', cursor: 'pointer' }}>Dismiss</button>
+                  </div>
+                  {!is2028 && (
+                    <button style={{ width: '100%', marginTop: '0.6rem', padding: '10px', background: 'transparent', color: '#00395D', border: '1px solid rgba(0,57,93,0.2)', borderRadius: '10px', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>
+                      Monitor Dining Spend
+                    </button>
+                  )}
+                </div>
+              );
+              await wait(1000);
+              setIsTyping(true);
+              await wait(1800);
+              setIsTyping(false);
+              setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', text: is2028 ? "I've been monitoring your spending patterns continuously. Your restaurant category crossed my anomaly threshold this week — you're 47% above your 3-month baseline and trending higher. I've already drafted a budget adjustment for your review." : "I've noticed your restaurant spending has been trending upward over the past three months. This is the kind of pattern that's easy to miss month-to-month but adds up quickly.", card: insightCard }]);
+            } else if (scene.multiStep) {
+              await typeText(scene.queries[0]);
+              await wait(5000);
+              await typeText("I don't recognise this.");
+              await wait(7000);
+              setIsTyping(true);
+              await wait(800);
+              setIsTyping(false);
+              processInputRef.current('Chat with fraud specialist.');
+            } else if (scene.accountSelect) {
+              if (futureModeRef.current) {
+                // Future mode: AI selects source automatically — single query
+                await typeText(scene.queries[0]);
+              } else {
+                // Today mode: ambiguous — disambiguation card appears, then user picks Barclays
+                await typeText(scene.queries[0]);
+                await wait(3500);
+                await typeText('Barclays savings please.');
+                await wait(3500);
+              }
+            } else {
+              for (const query of scene.queries) {
+                await typeText(query);
+              }
+            }
+
+            await wait(scene.readTime);
+            i++;
+          } catch (err) {
+            if (err.message === 'Abort') throw err;
+            if (err.message === 'Skip') {
+              demoCore.current.skip = false;
+              if (demoCore.current.target !== null) {
+                i = demoCore.current.target;
+                demoCore.current.target = null;
+              } else {
+                i++; // Default skip to next if no target
+              }
+            }
+          }
         }
-        
+
         if (i >= SCENES.length && demoCore.current.active) {
-            dispatch('Platform Architecture — opening…', { phase: 0, total: SCENES.length, showPlatform: true });
+          dispatch('Platform Architecture — opening…', { phase: 0, total: SCENES.length, showPlatform: true });
         }
       } catch (err) {
-         // Silently catch Abort
+        // Silently catch Abort
       } finally {
-         demoCore.current.active = false;
-         window.dispatchEvent(new CustomEvent('AUTOPILOT_PLAY_STATE', { detail: { playing: false } }));
+        demoCore.current.active = false;
+        window.dispatchEvent(new CustomEvent('AUTOPILOT_PLAY_STATE', { detail: { playing: false } }));
       }
     };
 
@@ -1180,8 +1180,8 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Sarah • Fraud Specialist</div>
                 <div style={{ background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '4px 16px 16px 16px', border: '1px solid var(--card-border)', boxShadow: 'var(--card-shadow)', color: 'var(--text-primary)', fontSize: '0.9rem', lineHeight: 1.55 }}>
                   {futureMode
-                    ? `Hi James, the AI has already done the heavy lifting — I can see the £85 Northline dispute and a provisional refund has been agreed. Just say the word and I'll finalise it right now. No forms, no hold music.`
-                    : `Hi James, I've been passed your case reference #FR-2839. To investigate this charge, I'll need to ask you a few questions — could you confirm the merchant name, the transaction date, and the exact amount you're disputing?`}
+                    ? `Hi Joe, the AI has already done the heavy lifting — I can see the £85 Northline dispute and a provisional refund has been agreed. Just say the word and I'll finalise it right now. No forms, no hold music.`
+                    : `Hi Joe, I've been passed your case reference #FR-2839. To investigate this charge, I'll need to ask you a few questions — could you confirm the merchant name, the transaction date, and the exact amount you're disputing?`}
                 </div>
               </div>
             </div>
