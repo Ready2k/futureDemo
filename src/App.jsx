@@ -7,7 +7,7 @@ import { PlatformOverlay } from './components/PlatformOverlay';
 import { HomeScreenIntro } from './components/HomeScreenIntro';
 import { BiometricAuthScreen } from './components/BiometricAuthScreen';
 import { useBanking } from './context/BankingContext';
-import { Home, ArrowLeftRight, CreditCard, MessageCircle, Wifi, BatteryMedium, Signal, Zap, RotateCcw, ChevronDown, Sun, Moon, Play, Pause, FastForward, Rewind, List, Columns2, Mic, Type } from 'lucide-react';
+import { Home, ArrowLeftRight, CreditCard, MessageCircle, Wifi, BatteryMedium, Signal, Zap, RotateCcw, ChevronDown, Sun, Moon, Play, Pause, FastForward, Rewind, List, Columns2, Mic, Type, Volume2, VolumeX } from 'lucide-react';
 import { ComparisonAdvisor } from './components/ComparisonAdvisor';
 
 // Thin ambient header shown when header is collapsed
@@ -124,6 +124,21 @@ function AppInner({ futureMode, headerCollapsed, onExpand, startEventName = 'STA
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Narration scripts — keyed by phase 0 (intro) through 6 (scenes).
+// Drop a pre-recorded file at /public/narration/scene{N}.mp3 to replace the
+// Web Speech API fallback with high-quality audio (Polly / Nova Sonic / Gemini).
+// ─────────────────────────────────────────────────────────────────────────────
+const NARRATIONS = {
+  0: "What you're about to see is a banking experience where natural language replaces app navigation entirely. The customer never opens a menu, never taps through screens. They simply ask — and the bank reasons, acts, and responds. Six scenes. Each one shows a different capability. Let's begin.",
+  1: "Scene one — Financial Awareness. The assistant computes exactly how much is safe to spend this month. Live balances, committed bills, and savings goals — all aggregated in under a second. No app switching, no manual maths.",
+  2: "Scene two — Spending Insight. One question surfaces twelve months of categorised transactions. Housing, transport, restaurants, subscriptions — patterns that would take an hour to find, answered instantly.",
+  3: "Scene three — Affordability Reasoning. The assistant doesn't just check the balance. It models the full impact of a nine hundred pound holiday on cashflow and future savings goals. Reasoning, not just retrieval.",
+  4: "Scene four — Safe Transfer. A transfer request hits the policy engine automatically. Minimum balance rules, confirmation thresholds, and a full audit trail fire without the customer ever knowing they're there.",
+  5: "Scene five — Behavioural Intelligence. The assistant surfaces a restaurant spend anomaly before the customer asks. This is the shift from reactive to proactive — the bank acting as a true financial copilot.",
+  6: "Scene six — Intelligent Support. An unknown charge becomes a dispute, a merchant block, and a rich handoff to a human specialist — orchestrated entirely in one conversation. This is the future of customer support.",
+};
+
 function App() {
   const [futureMode, setFutureMode] = useState(false);
   const [comparisonMode, setComparisonMode] = useState(false);
@@ -146,6 +161,54 @@ function App() {
   const [showFutureAuthScreen, setShowFutureAuthScreen] = useState(false);
   const [showPlatformOverlay, setShowPlatformOverlay] = useState(true);
   const [demoPlaying, setDemoPlaying] = useState(true);
+  const [narratorEnabled, setNarratorEnabled] = useState(true);
+  const narratorEnabledRef = useRef(true);
+  useEffect(() => { narratorEnabledRef.current = narratorEnabled; }, [narratorEnabled]);
+  const currentAudioRef = useRef(null);
+  const lastNarratedPhaseRef = useRef(0);
+
+  const stopNarration = () => {
+    window.speechSynthesis?.cancel();
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.src = '';
+      currentAudioRef.current = null;
+    }
+  };
+
+  const speakNarration = async (phase) => {
+    const text = NARRATIONS[phase];
+    if (!text) return;
+    stopNarration();
+
+    const audioPath = `/narration/scene${phase}.mp3`;
+
+    // HEAD request confirms the file exists before we try to play it.
+    // This avoids the catch-calls-onerror race that triggered TTS when
+    // play() rejected before the audio element had finished loading.
+    try {
+      const res = await fetch(audioPath, { method: 'HEAD' });
+      if (!res.ok) throw new Error('not found');
+
+      const audio = new Audio(audioPath);
+      currentAudioRef.current = audio;
+      await audio.play();
+    } catch {
+      // File absent or play blocked — fall back to Web Speech API
+      currentAudioRef.current = null;
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.rate = 0.92;
+      utt.pitch = 1.0;
+      const voices = window.speechSynthesis.getVoices();
+      const preferred =
+        voices.find(v => v.name === 'Daniel') ||
+        voices.find(v => v.name.includes('Google UK English Male')) ||
+        voices.find(v => v.lang === 'en-GB') ||
+        voices.find(v => v.lang.startsWith('en'));
+      if (preferred) utt.voice = preferred;
+      window.speechSynthesis.speak(utt);
+    }
+  };
 
   // Time ticker
   const [time, setTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -198,16 +261,26 @@ function App() {
       setDemoPhase(phase || 0);
       if (phase === 0) {
         setDemoRunning(false);
+        stopNarration();
         if (showPlatform) setTimeout(() => setShowPlatformOverlay(true), 600);
+      } else if (phase !== lastNarratedPhaseRef.current) {
+        // Deduplicated — fires once even when two panels dispatch the same phase (comparison mode)
+        lastNarratedPhaseRef.current = phase;
+        if (narratorEnabledRef.current) {
+          setTimeout(() => speakNarration(phase), 1500);
+        }
       }
     };
     window.addEventListener('DEMO_PHASE_UPDATE', onPhaseUpdate);
     return () => window.removeEventListener('DEMO_PHASE_UPDATE', onPhaseUpdate);
   }, []);
 
-  // Sync play/pause button icon with autopilot state
+  // Sync play/pause button icon with autopilot state; stop narration on pause
   useEffect(() => {
-    const onPlayState = (e) => setDemoPlaying(e.detail.playing);
+    const onPlayState = (e) => {
+      setDemoPlaying(e.detail.playing);
+      if (!e.detail.playing) stopNarration();
+    };
     window.addEventListener('AUTOPILOT_PLAY_STATE', onPlayState);
     return () => window.removeEventListener('AUTOPILOT_PLAY_STATE', onPlayState);
   }, []);
@@ -248,10 +321,12 @@ function App() {
 
   const handleDemoClick = () => {
     if (demoRunning) return;
+    lastNarratedPhaseRef.current = 0;
     setDemoRunning(true);
     setDemoPhase(0);
     setDemoPhaseLabel('Starting…');
     setShowPlatformOverlay(false);
+    if (narratorEnabledRef.current) speakNarration(0);
     if (comparisonMode) {
       window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO_TODAY'));
       window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO_FUTURE'));
@@ -295,6 +370,8 @@ function App() {
   };
 
   const handleReset = () => {
+    stopNarration();
+    lastNarratedPhaseRef.current = 0;
     setDemoRunning(false);
     setDemoPhaseLabel(null);
     setDemoPhase(0);
@@ -413,6 +490,23 @@ function App() {
           >
             {inputMode === 'voice' ? <Mic size={13} /> : <Type size={13} />}
             <span>{inputMode === 'voice' ? 'Voice' : 'Typed'}</span>
+          </div>
+
+          {/* Narrator toggle */}
+          <div
+            onClick={() => { setNarratorEnabled(n => !n); if (narratorEnabled) stopNarration(); }}
+            title={narratorEnabled ? 'Narration on — click to mute' : 'Narration off — click to enable'}
+            style={{
+              background: narratorEnabled ? 'rgba(0,174,239,0.12)' : '#1a1a1a',
+              border: `1px solid ${narratorEnabled ? 'rgba(0,174,239,0.35)' : '#272727'}`,
+              borderRadius: '100px', padding: '7px 14px',
+              color: narratorEnabled ? '#00AEEF' : '#444',
+              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+              fontSize: '0.78rem', fontFamily: 'inherit', transition: 'all 0.25s',
+            }}
+          >
+            {narratorEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+            <span>Narrate</span>
           </div>
 
           {/* Compare mode */}
