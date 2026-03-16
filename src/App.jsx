@@ -205,6 +205,34 @@ const NARRATIONS = {
     5: "Scene five — Behavioural Intelligence. Ambient protection fires before any limit is reached. The AI pre-drafts adjustments, monitors categories continuously, and reports back. No user initiation — protection just works.",
     6: "Scene six — Intelligent Support. The AI flagged the suspicious merchant three days before the customer noticed, paused payments, and drafted the dispute. When a human specialist joins, they arrive with zero-recap context already loaded.",
   },
+  // ── Comparisons ──────────────────────────────────────────────────────────
+  'compare-today-2028': {
+    0: "On the left, we see today. On the right, we see 2028. Notice the difference in the initial experience.",
+    1: "Here we examine financial awareness. The left side uses today patterns, while the right displays 2028 intelligence.",
+    2: "When investigating spending insights, the today approach requires manual retrieval, whereas 2028 highlights proactive analysis.",
+    3: "For affordability reasoning, the contrast is clear. today shows basic calculation, while 2028 models the full impact.",
+    4: "In safe transfer, today expects user disambiguation. 2028 delegates within pre-authorised limits.",
+    5: "Behavioural intelligence is reactive in today, but ambient and proactive in 2028.",
+    6: "Finally, support. The today experience requires recapping, while the 2028 model provides rich hand-offs.",
+  },
+  'compare-today-2030': {
+    0: "On the left, we see today. On the right, we see 2030. Notice the difference in the initial experience.",
+    1: "Here we examine financial awareness. The left side uses today patterns, while the right displays 2030 intelligence.",
+    2: "When investigating spending insights, the today approach requires manual retrieval, whereas 2030 highlights proactive analysis.",
+    3: "For affordability reasoning, the contrast is clear. today shows basic calculation, while 2030 models the full impact.",
+    4: "In safe transfer, today expects user disambiguation. 2030 delegates within pre-authorised limits.",
+    5: "Behavioural intelligence is reactive in today, but ambient and proactive in 2030.",
+    6: "Finally, support. The today experience requires recapping, while the 2030 model provides rich hand-offs.",
+  },
+  'compare-2028-2030': {
+    0: "On the left, we see 2028. On the right, we see 2030. Notice the difference in the initial experience.",
+    1: "Here we examine financial awareness. The left side uses 2028 patterns, while the right displays 2030 intelligence.",
+    2: "When investigating spending insights, the 2028 approach requires manual retrieval, whereas 2030 highlights proactive analysis.",
+    3: "For affordability reasoning, the contrast is clear. 2028 shows basic calculation, while 2030 models the full impact.",
+    4: "In safe transfer, 2028 expects user disambiguation. 2030 delegates within pre-authorised limits.",
+    5: "Behavioural intelligence is reactive in 2028, but ambient and proactive in 2030.",
+    6: "Finally, support. The 2028 experience requires recapping, while the 2030 model provides rich hand-offs.",
+  },
 };
 
 function App() {

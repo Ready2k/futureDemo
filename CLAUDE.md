@@ -97,6 +97,8 @@ The demo's credibility rests on three UI patterns — treat these as first-class
 | `src/services/intentEngine.js` | Regex-based intent + parameter extraction |
 | `src/services/policyEngine.js` | Transfer policy rules (min balance £1000, confirmation threshold £500) |
 | `src/data/mockData.js` | **Single source of truth for all financial figures** — change balances, expenses, income, savings goal here |
+| `src/components2030/ProviderExecutionChip.jsx` | Inline badge showing which provider (Barclays, Visa, NatWest, etc.) executed a step — used in 2030-vision cards |
+| `src/components2030/TrustTimeline.jsx` | Execution chain display with labelled steps — used in 2030-vision cards |
 
 ### Styling
 
@@ -104,7 +106,18 @@ All theme variables are CSS custom properties in `src/index.css`. Light mode is 
 
 ### Narration Audio
 
-Pre-recorded MP3 files live in `public/narration/` (`scene0.mp3`–`scene6.mp3`). The app tries to load each file at scene start; if absent it falls back to the browser's Web Speech API automatically. To regenerate audio, use the scripts in `public/narration/README.md` (recommended: Amazon Polly voice `Brian`, en-GB, Neural engine).
+Pre-recorded MP3 files live in `public/narration/` organised by scenario into subdirectories:
+
+| Subdirectory | Purpose |
+|---|---|
+| `today/` | Standard (today) narration for scenes 0–6 |
+| `2028/` | 2028 future-mode narration |
+| `2030/` | 2030 vision narration |
+| `compare-today-2028/` | Side-by-side today vs 2028 narration |
+| `compare-today-2030/` | Side-by-side today vs 2030 narration |
+| `compare-2028-2030/` | Side-by-side 2028 vs 2030 narration |
+
+Each subdirectory contains `scene0.mp3`–`scene6.mp3`. The app selects the correct subdirectory based on the active demo mode; if a file is absent it falls back to the browser's Web Speech API automatically. To regenerate audio, use the scripts in `public/narration/README.md` (recommended: Amazon Polly voice `Brian`, en-GB, Neural engine).
 
 ### ESLint Notes
 
