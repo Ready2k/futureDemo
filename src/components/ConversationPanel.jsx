@@ -1928,8 +1928,8 @@ export const ConversationPanel = ({ demoMode = 'today', startEventName = 'START_
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'hidden', position: 'relative' }}>
 
-      {/* AI Reasoning Drawer — anchored left */}
-      <ReasoningDrawer trace={currentTrace} futureMode={futureMode} />
+      {/* AI Reasoning Drawer — single mode only (hidden in comparison) */}
+      {!side && <ReasoningDrawer trace={currentTrace} futureMode={futureMode} />}
 
       {/* Chat feed */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 1rem 1rem', background: 'var(--bg-primary)' }}>

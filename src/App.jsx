@@ -9,6 +9,7 @@ import { BiometricAuthScreen } from './components/BiometricAuthScreen';
 import { useBanking } from './context/BankingContext';
 import { Home, ArrowLeftRight, CreditCard, MessageCircle, Wifi, BatteryMedium, Signal, Zap, Sparkles, RotateCcw, ChevronDown, Sun, Moon, Play, Pause, FastForward, Rewind, List, Columns2, Mic, Type, Volume2, VolumeX } from 'lucide-react';
 import { ComparisonAdvisor } from './components/ComparisonAdvisor';
+import { WelcomeGuide } from './components/WelcomeGuide';
 
 // Thin ambient header shown when header is collapsed
 const CollapsedHeader = ({ time, demoMode, totalWealth, onExpand }) => {
@@ -236,6 +237,7 @@ const NARRATIONS = {
 };
 
 function App() {
+  const [showGuide, setShowGuide] = useState(true);
   const [demoMode, setDemoMode] = useState('2028'); // 'today' | '2028' | '2030' (right side in comp)
   const futureMode = demoMode === '2028'; // backwards-compat for comparison mode + narrator
   const demoModeRef = useRef(demoMode);
@@ -524,71 +526,61 @@ function App() {
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9998,
         background: 'rgba(8,13,20,0.92)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
         borderBottom: '1px solid rgba(255,255,255,0.07)',
-        height: '58px', display: 'flex', alignItems: 'center',
-        padding: '0 20px', gap: '12px', fontFamily: 'inherit',
+        fontFamily: 'inherit', display: 'flex', flexDirection: 'column',
       }}>
 
-        {/* Left — branding */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#00AEEF', letterSpacing: '0.18em', textTransform: 'uppercase' }}>Future Banking</span>
-          <div style={{ width: '1px', height: '14px', background: '#2a2a2a' }} />
-          <span style={{ fontSize: '0.68rem', color: '#444', letterSpacing: '0.05em' }}>Presenter Demo</span>
-        </div>
+        {/* ── Row 1: Branding + Settings ──────────────────────────────────── */}
+        <div style={{ height: '52px', display: 'flex', alignItems: 'center', padding: '0 16px', gap: '8px' }}>
 
-        {/* Centre — progress bar */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px', padding: '0 28px' }}>
-          {demoRunning && demoPhaseLabel && !isComplete && (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.68rem', color: demoPlaying ? '#888' : '#f59e0b', fontFamily: 'inherit', transition: 'color 0.2s' }}>
-                  {demoPlaying ? demoPhaseLabel : `⏸  ${demoPhaseLabel}`}
-                </span>
-                <span style={{ fontSize: '0.66rem', color: '#444' }}>{demoPhase} / {demoTotal}</span>
-              </div>
-              <div style={{ height: '3px', background: '#222', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(demoPhase / demoTotal) * 100}%`, background: demoPlaying ? 'linear-gradient(90deg, #00395D, #00AEEF)' : '#f59e0b', borderRadius: '3px', transition: 'background 0.3s, width 0.8s ease' }} />
-              </div>
-            </>
-          )}
-          {isComplete && (
-            <span style={{ fontSize: '0.68rem', color: '#4caf50', fontFamily: 'inherit' }}>{demoPhaseLabel}</span>
-          )}
-        </div>
+          {/* Branding */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginRight: '4px' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#00AEEF', letterSpacing: '0.18em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Future Banking</span>
+            <div style={{ width: '1px', height: '14px', background: '#2a2a2a' }} />
+            <span style={{ fontSize: '0.65rem', color: '#444', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>Presenter Demo</span>
+          </div>
 
-        {/* Right — controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* Guide */}
+          <button
+            onClick={() => setShowGuide(true)}
+            title="Show feature guide"
+            style={{
+              background: 'transparent', border: '1px solid #272727',
+              borderRadius: '100px', width: '30px', height: '30px',
+              color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: '700', flexShrink: 0,
+            }}
+          >
+            ?
+          </button>
 
           {/* Dark mode */}
           <button
             onClick={() => setDarkMode(d => !d)}
+            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             style={{
               background: 'transparent', border: '1px solid #272727',
-              borderRadius: '100px', padding: '7px 14px',
-              color: '#777', display: 'flex', alignItems: 'center', gap: '6px',
-              cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'inherit',
+              borderRadius: '100px', padding: '5px 10px',
+              color: '#777', display: 'flex', alignItems: 'center', gap: '5px',
+              cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'inherit', flexShrink: 0,
             }}
           >
-            {darkMode ? <Sun size={13} /> : <Moon size={13} />}
-            {darkMode ? 'Light' : 'Dark'}
+            {darkMode ? <Sun size={12} /> : <Moon size={12} />}
+            <span style={{ display: 'none' /* hidden at all sizes, icon only */ }} />
           </button>
 
           {/* Era mode selector */}
-          <div style={{ display: 'flex', background: '#1a1a1a', border: '1px solid #272727', borderRadius: '100px', padding: '3px', gap: '2px' }}>
+          <div style={{ display: 'flex', background: '#1a1a1a', border: '1px solid #272727', borderRadius: '100px', padding: '3px', gap: '2px', flexShrink: 0 }}>
             {comparisonMode && (
                <select
                  value={comparisonLeftMode}
                  onChange={(e) => setComparisonLeftMode(e.target.value)}
                  style={{
-                   background: 'transparent',
-                   border: 'none',
-                   color: '#a78bfa',
-                   fontSize: '0.78rem',
-                   fontFamily: 'inherit',
-                   outline: 'none',
-                   cursor: 'pointer',
-                   padding: '0 5px 0 10px',
-                   fontWeight: '700',
-                   appearance: 'none',
+                   background: 'transparent', border: 'none', color: '#a78bfa',
+                   fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
+                   cursor: 'pointer', padding: '0 4px 0 8px', fontWeight: '700', appearance: 'none',
                  }}
                >
                  <option value="today">Today</option>
@@ -596,15 +588,13 @@ function App() {
                  <option value="2030">2030</option>
                </select>
             )}
-
             {comparisonMode && (
-               <span style={{color: '#555', fontSize: '0.78rem', display: 'flex', alignItems: 'center', padding: '0 4px', fontWeight: 'bold'}}>vs</span>
+               <span style={{ color: '#555', fontSize: '0.75rem', display: 'flex', alignItems: 'center', padding: '0 3px', fontWeight: 'bold' }}>vs</span>
             )}
-            
             {[
               { key: 'today', label: 'Today', icon: null },
-              { key: '2028', label: '2028', icon: <Zap size={11} fill="white" /> },
-              { key: '2030', label: '2030', icon: <Sparkles size={11} /> },
+              { key: '2028', label: '2028', icon: <Zap size={10} fill="white" /> },
+              { key: '2030', label: '2030', icon: <Sparkles size={10} /> },
             ].map(({ key, label, icon }) => {
               const active = demoMode === key;
               const gradients = { '2028': 'linear-gradient(135deg, #7c3aed, #00AEEF)', '2030': 'linear-gradient(135deg, #4C1D95, #1E40AF)' };
@@ -615,13 +605,14 @@ function App() {
                   onClick={() => setDemoMode(key)}
                   style={{
                     background: active ? (gradients[key] || '#3d3d3d') : 'transparent',
-                    border: 'none', borderRadius: '100px', padding: '5px 13px',
+                    border: 'none', borderRadius: '100px', padding: '4px 11px',
                     color: active ? 'white' : '#555', cursor: 'pointer',
-                    fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: active ? '700' : '400',
-                    display: 'flex', alignItems: 'center', gap: '5px',
+                    fontSize: '0.75rem', fontFamily: 'inherit', fontWeight: active ? '700' : '400',
+                    display: 'flex', alignItems: 'center', gap: '4px',
                     transition: 'all 0.2s',
                     boxShadow: active && key !== 'today' ? '0 2px 8px rgba(124,58,237,0.3)' : 'none',
                     opacity: (comparisonMode && key === comparisonLeftMode) ? 0.3 : 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {icon}{label}
@@ -630,19 +621,20 @@ function App() {
             })}
           </div>
 
-          {/* Input mode: Typed / Voice */}
+          {/* Input mode */}
           <div
             onClick={() => setInputMode(m => m === 'typed' ? 'voice' : 'typed')}
+            title={inputMode === 'voice' ? 'Switch to typed input' : 'Switch to voice input'}
             style={{
               background: inputMode === 'voice' ? 'rgba(162,89,255,0.15)' : '#1a1a1a',
               border: `1px solid ${inputMode === 'voice' ? 'rgba(162,89,255,0.4)' : '#272727'}`,
-              borderRadius: '100px', padding: '7px 14px',
+              borderRadius: '100px', padding: '5px 10px',
               color: inputMode === 'voice' ? '#a78bfa' : '#555',
-              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
-              fontSize: '0.78rem', fontFamily: 'inherit', transition: 'all 0.25s',
+              display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer',
+              fontSize: '0.75rem', fontFamily: 'inherit', transition: 'all 0.25s', flexShrink: 0,
             }}
           >
-            {inputMode === 'voice' ? <Mic size={13} /> : <Type size={13} />}
+            {inputMode === 'voice' ? <Mic size={12} /> : <Type size={12} />}
             <span>{inputMode === 'voice' ? 'Voice' : 'Typed'}</span>
           </div>
 
@@ -653,13 +645,13 @@ function App() {
             style={{
               background: narratorEnabled ? 'rgba(0,174,239,0.12)' : '#1a1a1a',
               border: `1px solid ${narratorEnabled ? 'rgba(0,174,239,0.35)' : '#272727'}`,
-              borderRadius: '100px', padding: '7px 14px',
+              borderRadius: '100px', padding: '5px 10px',
               color: narratorEnabled ? '#00AEEF' : '#444',
-              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
-              fontSize: '0.78rem', fontFamily: 'inherit', transition: 'all 0.25s',
+              display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer',
+              fontSize: '0.75rem', fontFamily: 'inherit', transition: 'all 0.25s', flexShrink: 0,
             }}
           >
-            {narratorEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+            {narratorEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
             <span>Narrate</span>
           </div>
 
@@ -669,72 +661,22 @@ function App() {
             style={{
               background: comparisonMode ? 'rgba(0,174,239,0.15)' : '#1a1a1a',
               border: `1px solid ${comparisonMode ? 'rgba(0,174,239,0.4)' : '#272727'}`,
-              borderRadius: '100px', padding: '7px 14px', color: comparisonMode ? '#00AEEF' : '#555',
-              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
-              fontSize: '0.78rem', fontFamily: 'inherit',
-              transition: 'all 0.25s',
+              borderRadius: '100px', padding: '5px 10px', color: comparisonMode ? '#00AEEF' : '#555',
+              display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
+              fontSize: '0.75rem', fontFamily: 'inherit', transition: 'all 0.25s', flexShrink: 0,
             }}
           >
-            <Columns2 size={13} />
+            <Columns2 size={12} />
             <span>Compare</span>
-            <div style={{ width: '26px', height: '15px', borderRadius: '100px', background: 'rgba(255,255,255,0.1)', position: 'relative', flexShrink: 0 }}>
-              <div style={{ width: '11px', height: '11px', background: comparisonMode ? '#00AEEF' : '#333', borderRadius: '50%', position: 'absolute', top: '2px', left: comparisonMode ? '13px' : '2px', transition: 'left 0.25s, background 0.25s', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
+            <div style={{ width: '24px', height: '14px', borderRadius: '100px', background: 'rgba(255,255,255,0.1)', position: 'relative', flexShrink: 0 }}>
+              <div style={{ width: '10px', height: '10px', background: comparisonMode ? '#00AEEF' : '#333', borderRadius: '50%', position: 'absolute', top: '2px', left: comparisonMode ? '12px' : '2px', transition: 'left 0.25s, background 0.25s', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
             </div>
           </div>
 
-          <div style={{ width: '1px', height: '24px', background: '#1e1e1e' }} />
+          <div style={{ width: '1px', height: '20px', background: '#1e1e1e', flexShrink: 0 }} />
 
-          {/* Playback controls — while running */}
-          {demoRunning && !isComplete && (
-            <>
-              <div style={{ display: 'flex', gap: '2px', background: '#1a1a1a', borderRadius: '100px', padding: '4px', border: '1px solid #272727' }}>
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: demoPhase - 2 } }))}
-                  title="Previous scene"
-                  style={{ background: 'transparent', border: 'none', color: '#666', padding: '7px 9px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center' }}
-                >
-                  <Rewind size={15} />
-                </button>
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'togglePlay' } }))}
-                  title={demoPlaying ? 'Pause' : 'Resume'}
-                  style={{ background: '#00395D', border: 'none', color: 'white', padding: '7px 9px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', boxShadow: '0 0 10px rgba(0,174,239,0.3)' }}
-                >
-                  {demoPlaying ? <Pause size={15} fill="white" /> : <Play size={15} fill="white" />}
-                </button>
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: demoPhase } }))}
-                  title="Next scene"
-                  style={{ background: 'transparent', border: 'none', color: '#666', padding: '7px 9px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center' }}
-                >
-                  <FastForward size={15} />
-                </button>
-              </div>
-
-              <select
-                onChange={(e) => {
-                  const idx = parseInt(e.target.value, 10);
-                  window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: idx } }));
-                }}
-                value={demoPhase > 0 ? demoPhase - 1 : ''}
-                style={{ background: '#1a1a1a', color: '#bbb', border: '1px solid #272727', borderRadius: '100px', padding: '8px 14px', outline: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', appearance: 'none' }}
-              >
-                <option value="" disabled>Jump to…</option>
-                {SCENE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-
-              <button
-                onClick={handleReset}
-                title="Reset demo"
-                style={{ background: 'transparent', border: '1px solid #272727', color: '#555', padding: '8px 10px', borderRadius: '100px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-              >
-                <RotateCcw size={14} />
-              </button>
-            </>
-          )}
-
-          {/* Jump dropdown — when idle or complete */}
-          {(!demoRunning || isComplete) && (
+          {/* Jump directly — when idle only */}
+          {!demoRunning && (
             <select
               onChange={(e) => {
                 const idx = parseInt(e.target.value, 10);
@@ -742,60 +684,151 @@ function App() {
                 window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: idx } }));
               }}
               value=""
-              style={{ background: '#1a1a1a', color: '#666', border: '1px solid #272727', borderRadius: '100px', padding: '8px 14px', outline: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', appearance: 'none' }}
+              style={{ background: '#1a1a1a', color: '#666', border: '1px solid #272727', borderRadius: '100px', padding: '6px 12px', outline: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', appearance: 'none', flexShrink: 0 }}
             >
-              <option value="" disabled>Jump Directly To…</option>
+              <option value="" disabled>Jump to scene…</option>
               {SCENE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           )}
 
-          {/* Reset — when complete */}
-          {isComplete && (
-            <button
-              onClick={handleReset}
-              title="Reset demo"
-              style={{ background: 'transparent', border: '1px solid #272727', color: '#555', padding: '8px 10px', borderRadius: '100px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <RotateCcw size={14} />
-            </button>
-          )}
-
-          {/* Start / Restart */}
+          {/* Start / Restart / Running */}
           <button
             onClick={isComplete ? handleReset : handleDemoClick}
             disabled={demoRunning && !isComplete}
             style={{
-              background: isComplete ? '#0a2a0a' : demoRunning ? '#1a1a1a' : '#0F0F0F',
+              background: isComplete ? '#0a2a0a' : demoRunning ? '#1a1a1a' : 'linear-gradient(135deg, #00395D, #005f8a)',
               color: isComplete ? '#4caf50' : 'white',
-              border: `1px solid ${isComplete ? 'rgba(76,175,80,0.4)' : '#3d3d3d'}`,
-              padding: '8px 18px', borderRadius: '100px',
-              fontFamily: 'inherit', fontWeight: '600', fontSize: '0.85rem',
+              border: `1px solid ${isComplete ? 'rgba(76,175,80,0.4)' : demoRunning ? '#2a2a2a' : 'rgba(0,174,239,0.3)'}`,
+              padding: '6px 16px', borderRadius: '100px',
+              fontFamily: 'inherit', fontWeight: '600', fontSize: '0.8rem',
               cursor: demoRunning && !isComplete ? 'default' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: '8px',
-              opacity: demoRunning && !isComplete ? 0.55 : 1,
+              display: 'flex', alignItems: 'center', gap: '7px', flexShrink: 0,
+              opacity: demoRunning && !isComplete ? 0.6 : 1,
               transition: 'all 0.2s',
+              boxShadow: !demoRunning && !isComplete ? '0 0 12px rgba(0,174,239,0.2)' : 'none',
             }}
           >
             <span style={{
-              width: '9px', height: '9px', flexShrink: 0,
+              width: '8px', height: '8px', flexShrink: 0,
               background: isComplete ? '#4caf50' : demoRunning ? '#ff9800' : '#00AEEF',
               borderRadius: '50%',
               animation: demoRunning && !isComplete ? 'pulseOrange 1.2s infinite' : 'pulse 3s infinite',
             }} />
-            {isComplete ? 'Restart' : demoRunning ? 'Running…' : 'Start Full Demo'}
+            {isComplete ? 'Restart' : demoRunning ? 'Running…' : 'Start Demo'}
           </button>
 
         </div>
+
+        {/* ── Row 2: Progress + Playback (running/complete only) ───────────── */}
+        {demoRunning && (
+          <div style={{
+            height: '38px', display: 'flex', alignItems: 'center',
+            padding: '0 16px', gap: '10px',
+            borderTop: '1px solid rgba(255,255,255,0.04)',
+            background: 'rgba(0,0,0,0.2)',
+          }}>
+            {!isComplete ? (
+              <>
+                {/* Scene label */}
+                <span style={{ fontSize: '0.68rem', color: demoPlaying ? '#888' : '#f59e0b', fontFamily: 'inherit', transition: 'color 0.2s', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {demoPlaying ? demoPhaseLabel : `⏸  ${demoPhaseLabel}`}
+                </span>
+                {/* Progress bar */}
+                <div style={{ flex: 1, height: '2px', background: '#222', borderRadius: '2px', overflow: 'hidden', minWidth: '60px' }}>
+                  <div style={{ height: '100%', width: `${(demoPhase / demoTotal) * 100}%`, background: demoPlaying ? 'linear-gradient(90deg, #00395D, #00AEEF)' : '#f59e0b', borderRadius: '2px', transition: 'background 0.3s, width 0.8s ease' }} />
+                </div>
+                {/* Fraction */}
+                <span style={{ fontSize: '0.64rem', color: '#444', flexShrink: 0 }}>{demoPhase} / {demoTotal}</span>
+
+                <div style={{ width: '1px', height: '16px', background: '#1e1e1e', flexShrink: 0 }} />
+
+                {/* Playback controls */}
+                <div style={{ display: 'flex', gap: '2px', background: '#1a1a1a', borderRadius: '100px', padding: '3px', border: '1px solid #272727', flexShrink: 0 }}>
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: demoPhase - 2 } }))}
+                    title="Previous scene"
+                    style={{ background: 'transparent', border: 'none', color: '#666', padding: '5px 8px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center' }}
+                  >
+                    <Rewind size={13} />
+                  </button>
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'togglePlay' } }))}
+                    title={demoPlaying ? 'Pause' : 'Resume'}
+                    style={{ background: '#00395D', border: 'none', color: 'white', padding: '5px 8px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', boxShadow: '0 0 8px rgba(0,174,239,0.3)' }}
+                  >
+                    {demoPlaying ? <Pause size={13} fill="white" /> : <Play size={13} fill="white" />}
+                  </button>
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: demoPhase } }))}
+                    title="Next scene"
+                    style={{ background: 'transparent', border: 'none', color: '#666', padding: '5px 8px', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center' }}
+                  >
+                    <FastForward size={13} />
+                  </button>
+                </div>
+
+                {/* Jump dropdown */}
+                <select
+                  onChange={(e) => {
+                    const idx = parseInt(e.target.value, 10);
+                    window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: idx } }));
+                  }}
+                  value={demoPhase > 0 ? demoPhase - 1 : ''}
+                  style={{ background: '#1a1a1a', color: '#bbb', border: '1px solid #272727', borderRadius: '100px', padding: '5px 12px', outline: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.73rem', appearance: 'none', flexShrink: 0 }}
+                >
+                  <option value="" disabled>Jump to…</option>
+                  {SCENE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+
+                {/* Reset */}
+                <button
+                  onClick={handleReset}
+                  title="Reset demo"
+                  style={{ background: 'transparent', border: '1px solid #272727', color: '#555', padding: '5px 8px', borderRadius: '100px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                >
+                  <RotateCcw size={12} />
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Complete message */}
+                <span style={{ fontSize: '0.68rem', color: '#4caf50', fontFamily: 'inherit', flexShrink: 0 }}>{demoPhaseLabel}</span>
+                <div style={{ flex: 1 }} />
+                {/* Jump + reset on complete */}
+                <select
+                  onChange={(e) => {
+                    const idx = parseInt(e.target.value, 10);
+                    e.target.value = '';
+                    window.dispatchEvent(new CustomEvent('AUTOPILOT_CTRL', { detail: { action: 'jump', index: idx } }));
+                  }}
+                  value=""
+                  style={{ background: '#1a1a1a', color: '#666', border: '1px solid #272727', borderRadius: '100px', padding: '5px 12px', outline: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.73rem', appearance: 'none', flexShrink: 0 }}
+                >
+                  <option value="" disabled>Jump to scene…</option>
+                  {SCENE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <button
+                  onClick={handleReset}
+                  title="Reset demo"
+                  style={{ background: 'transparent', border: '1px solid #272727', color: '#555', padding: '5px 8px', borderRadius: '100px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                >
+                  <RotateCcw size={12} />
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* ── Page content — offset below fixed header ─────────────────────── */}
       <div style={{
-        paddingTop: '58px', height: '100vh',
+        paddingTop: demoRunning ? '90px' : '52px', height: '100vh',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         boxSizing: 'border-box',
         background: 'radial-gradient(ellipse at 50% 56%, rgba(0,57,93,0.22) 0%, rgba(0,174,239,0.04) 35%, transparent 65%)',
         gap: '16px',
-        padding: '58px 20px 0',
+        padding: `${demoRunning ? '90px' : '52px'} 20px 0`,
       }}>
 
         {comparisonMode ? (
@@ -932,6 +965,14 @@ function App() {
       <AnimatePresence>
         {showPlatformOverlay && <PlatformOverlay onClose={() => setShowPlatformOverlay(false)} />}
       </AnimatePresence>
+
+      {/* Welcome / feature guide */}
+      {showGuide && (
+        <WelcomeGuide
+          onDismiss={() => setShowGuide(false)}
+          onStart={() => { setShowGuide(false); handleDemoClick(); }}
+        />
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes pulse {

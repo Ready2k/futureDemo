@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Shield, ChevronDown, ChevronUp, CheckCircle, AlertCircle, Info, Cpu } from 'lucide-react';
 
@@ -63,21 +64,26 @@ export const ReasoningDrawer = ({ trace, futureMode }) => {
 
   if (!trace) return null;
 
-  return (
+  // Portal out of the phone frame (which has overflow:hidden) so we can
+  // position the drawer freely using fixed coords relative to --phone-zoom.
+  return createPortal(
+    // Outer anchor: zero-width fixed point at the phone's left edge.
+    // The button and panel both hang to the LEFT from this anchor.
     <div style={{
-      position: 'absolute',
-      left: '-320px',
-      top: '80px',
-      width: '300px',
-      fontFamily: "'Open Sans', sans-serif"
+      position: 'fixed',
+      right: 'calc(50% + 195px * var(--phone-zoom) + 4px)',
+      top: '120px',
+      width: 0,
+      zIndex: 5000,
+      fontFamily: "'Open Sans', sans-serif",
     }}>
-      {/* Toggle Tab */}
+      {/* Toggle Tab — hangs left from the anchor, always visible */}
       <button
         onClick={() => setExpanded(e => !e)}
         style={{
           position: 'absolute',
           top: 0,
-          right: expanded ? '-1px' : '-1px',
+          right: 0,
           background: '#161B22',
           border: '1px solid #30363d',
           borderRight: expanded ? '1px solid #161B22' : '1px solid #30363d',
@@ -88,32 +94,32 @@ export const ReasoningDrawer = ({ trace, futureMode }) => {
           display: 'flex', alignItems: 'center', gap: '8px',
           fontSize: '0.8rem', fontWeight: '700',
           whiteSpace: 'nowrap',
-          zIndex: 10
+          zIndex: 10,
         }}
       >
         <Brain size={15} />
-        {expanded ? '← AI Trace' : 'AI Trace →'}
+        {expanded ? 'AI Trace ←' : '→ AI Trace'}
       </button>
 
       <AnimatePresence>
         {expanded && (
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
+            exit={{ opacity: 0, x: 10 }}
             style={{
               position: 'absolute',
-              top: 0,
-              right: '-301px',
+              top: 44,           // below the toggle button
+              right: 0,          // right edge aligns with the anchor (phone left edge)
               width: '300px',
               background: '#0D1117',
               border: '1px solid #30363d',
-              borderRadius: '0 12px 12px 12px',
+              borderRadius: '12px 0 12px 12px',
               padding: '1rem',
-              maxHeight: '75vh',
+              maxHeight: '72vh',
               overflowY: 'auto',
-              boxShadow: '4px 0 30px rgba(0,0,0,0.5)',
-              scrollbarWidth: 'none'
+              boxShadow: '-4px 4px 30px rgba(0,0,0,0.5)',
+              scrollbarWidth: 'none',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
@@ -242,6 +248,7 @@ export const ReasoningDrawer = ({ trace, futureMode }) => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div>,
+    document.body
   );
 };
