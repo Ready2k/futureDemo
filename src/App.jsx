@@ -181,7 +181,7 @@ function App() {
     if (!text) return;
     stopNarration();
 
-    const audioPath = `/narration/scene${phase}.mp3`;
+    const audioPath = `${import.meta.env.BASE_URL}narration/scene${phase}.mp3`;
 
     // HEAD request confirms the file exists before we try to play it.
     // This avoids the catch-calls-onerror race that triggered TTS when
