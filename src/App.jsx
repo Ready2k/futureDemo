@@ -138,7 +138,9 @@ function App() {
   const [demoTotal, setDemoTotal] = useState(6);
   const [demoRunning, setDemoRunning] = useState(false);
   const [showComparisonHomeScreen, setShowComparisonHomeScreen] = useState(false);
+  const [showComparisonAuthScreen, setShowComparisonAuthScreen] = useState(false);
   const comparisonHomeDoneRef = useRef(0);
+  const comparisonAuthDoneRef = useRef(0);
   const [showPlatformOverlay, setShowPlatformOverlay] = useState(true);
   const [demoPlaying, setDemoPlaying] = useState(true);
 
@@ -245,6 +247,16 @@ function App() {
     comparisonHomeDoneRef.current += 1;
     if (comparisonHomeDoneRef.current >= 2) {
       setShowComparisonHomeScreen(false);
+      setDemoPhaseLabel('Scene 0 — Authenticating…');
+      comparisonAuthDoneRef.current = 0;
+      setShowComparisonAuthScreen(true);
+    }
+  };
+
+  const handleComparisonAuthComplete = () => {
+    comparisonAuthDoneRef.current += 1;
+    if (comparisonAuthDoneRef.current >= 2) {
+      setShowComparisonAuthScreen(false);
       setDemoPhaseLabel('Starting…');
       setDemoPhase(1);
       window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO', { detail: { pendingQuery: null } }));
@@ -259,7 +271,9 @@ function App() {
     setShowHomeScreen(false);
     setShowAuthScreen(false);
     setShowComparisonHomeScreen(false);
+    setShowComparisonAuthScreen(false);
     comparisonHomeDoneRef.current = 0;
+    comparisonAuthDoneRef.current = 0;
     setAiGlow(false);
     setHeaderCollapsed(false);
     setDemoPlaying(true);
@@ -508,14 +522,24 @@ function App() {
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
                   />
-                  {showComparisonHomeScreen && (
-                    <HomeScreenIntro
-                      futureMode={false}
-                      playing={demoPlaying}
-                      onGlow={() => {}}
-                      onComplete={handleComparisonHomeComplete}
-                    />
+                  {(showComparisonHomeScreen || showComparisonAuthScreen) && (
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 1050, background: '#000' }} />
                   )}
+                  <AnimatePresence>
+                    {showComparisonAuthScreen && (
+                      <BiometricAuthScreen onComplete={handleComparisonAuthComplete} playing={demoPlaying} />
+                    )}
+                  </AnimatePresence>
+                  <AnimatePresence>
+                    {showComparisonHomeScreen && (
+                      <HomeScreenIntro
+                        futureMode={false}
+                        playing={demoPlaying}
+                        onGlow={() => {}}
+                        onComplete={handleComparisonHomeComplete}
+                      />
+                    )}
+                  </AnimatePresence>
                 </div>
               </BankingProvider>
             </div>
@@ -540,14 +564,24 @@ function App() {
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
                   />
-                  {showComparisonHomeScreen && (
-                    <HomeScreenIntro
-                      futureMode={true}
-                      playing={demoPlaying}
-                      onGlow={() => {}}
-                      onComplete={handleComparisonHomeComplete}
-                    />
+                  {(showComparisonHomeScreen || showComparisonAuthScreen) && (
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 1050, background: '#000' }} />
                   )}
+                  <AnimatePresence>
+                    {showComparisonAuthScreen && (
+                      <BiometricAuthScreen onComplete={handleComparisonAuthComplete} playing={demoPlaying} />
+                    )}
+                  </AnimatePresence>
+                  <AnimatePresence>
+                    {showComparisonHomeScreen && (
+                      <HomeScreenIntro
+                        futureMode={true}
+                        playing={demoPlaying}
+                        onGlow={() => {}}
+                        onComplete={handleComparisonHomeComplete}
+                      />
+                    )}
+                  </AnimatePresence>
                 </div>
               </BankingProvider>
             </div>
