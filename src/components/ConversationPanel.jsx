@@ -76,7 +76,7 @@ const MessageBubble = ({ msg }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Panel
 // ─────────────────────────────────────────────────────────────────────────────
-export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILOT_DEMO' }) => {
+export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILOT_DEMO', side = null }) => {
   const { profile, transferMoney, executeTransfer } = useBanking();
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -84,6 +84,8 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
   const [currentTrace, setCurrentTrace] = useState(null);
 
   const futureModeRef = useRef(futureMode);
+  const sideRef = useRef(side);
+  useEffect(() => { sideRef.current = side; }, [side]);
   const awaitingAccountSelectRef = useRef(null); // {complete: fn} — set when disambiguation card awaits a response
   const [showFutureBanner, setShowFutureBanner] = useState(false);
   useEffect(() => {
@@ -407,8 +409,24 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
                   }
                 }
                 
-                await wait(!futureModeRef.current && scene.readTimeToday != null ? scene.readTimeToday : scene.readTime);
-                i++; 
+                // In comparison mode use readTime for both phones so they stay in sync
+                const rt = sideRef.current
+                  ? scene.readTime
+                  : (!futureModeRef.current && scene.readTimeToday != null ? scene.readTimeToday : scene.readTime);
+                await wait(rt);
+
+                // Comparison sync barrier: after scene 1, both panels wait for each other
+                // before starting scene 2 so they stay in lockstep from here onwards
+                if (sideRef.current && i === 0) {
+                  let gateOpen = false;
+                  const gateHandler = () => { gateOpen = true; };
+                  window.addEventListener('COMPARISON_PROCEED', gateHandler);
+                  window.dispatchEvent(new CustomEvent('COMPARISON_SCENE1_DONE', { detail: { side: sideRef.current } }));
+                  while (!gateOpen) { await wait(100); }
+                  window.removeEventListener('COMPARISON_PROCEED', gateHandler);
+                }
+
+                i++;
             } catch (err) {
                 if (err.message === 'Abort') throw err;
                 if (err.message === 'Skip') {
@@ -445,7 +463,7 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
       window.removeEventListener(startEventName, startAutopilot);
       window.removeEventListener('RESET_CHAT', handleReset);
     };
-  }, [startEventName]);
+  }, [startEventName, side]);
 
   // ── Intent Handlers ──────────────────────────────────────────────────────
   const handleIntent = (intentData, originalText) => {

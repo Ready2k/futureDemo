@@ -42,7 +42,7 @@ const CollapsedHeader = ({ time, futureMode, totalWealth, onExpand }) => (
 );
 
 // Inner app so we can use useBanking for the collapsed header balance
-function AppInner({ futureMode, headerCollapsed, onExpand, startEventName = 'START_AUTOPILOT_DEMO' }) {
+function AppInner({ futureMode, headerCollapsed, onExpand, startEventName = 'START_AUTOPILOT_DEMO', side = null }) {
   const { profile, discretionaryIncome } = useBanking();
   const isa = profile?.linked_accounts?.natwest_isa;
   const totalWealth = (profile?.accounts.current || 0) + (profile?.accounts.savings || 0) + (futureMode ? (isa?.balance || 0) : 0);
@@ -110,7 +110,7 @@ function AppInner({ futureMode, headerCollapsed, onExpand, startEventName = 'STA
         </AnimatePresence>
 
         {/* Conversation Panel — fills remaining space */}
-        <ConversationPanel futureMode={futureMode} startEventName={startEventName} />
+        <ConversationPanel futureMode={futureMode} startEventName={startEventName} side={side} />
 
         {/* Bottom Nav */}
         <div className="bottom-nav">
@@ -137,6 +137,7 @@ function App() {
   const [demoPhase, setDemoPhase] = useState(0);
   const [demoTotal, setDemoTotal] = useState(6);
   const [demoRunning, setDemoRunning] = useState(false);
+  const comparisonGateRef = useRef({ today: false, future: false });
   const [showTodayHomeScreen, setShowTodayHomeScreen] = useState(false);
   const [showTodayAuthScreen, setShowTodayAuthScreen] = useState(false);
   const [showFutureHomeScreen, setShowFutureHomeScreen] = useState(false);
@@ -207,6 +208,26 @@ function App() {
     const onPlayState = (e) => setDemoPlaying(e.detail.playing);
     window.addEventListener('AUTOPILOT_PLAY_STATE', onPlayState);
     return () => window.removeEventListener('AUTOPILOT_PLAY_STATE', onPlayState);
+  }, []);
+
+  // Comparison mode: gate coordinator — fires COMPARISON_PROCEED when both panels finish scene 1
+  useEffect(() => {
+    const onDone = (e) => {
+      const gate = comparisonGateRef.current;
+      gate[e.detail.side] = true;
+      if (gate.today && gate.future) {
+        gate.today = false;
+        gate.future = false;
+        window.dispatchEvent(new CustomEvent('COMPARISON_PROCEED'));
+      }
+    };
+    const onReset = () => { comparisonGateRef.current = { today: false, future: false }; };
+    window.addEventListener('COMPARISON_SCENE1_DONE', onDone);
+    window.addEventListener('RESET_CHAT', onReset);
+    return () => {
+      window.removeEventListener('COMPARISON_SCENE1_DONE', onDone);
+      window.removeEventListener('RESET_CHAT', onReset);
+    };
   }, []);
 
   const handleDemoClick = () => {
@@ -522,6 +543,7 @@ function App() {
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
                     startEventName="START_AUTOPILOT_DEMO_TODAY"
+                    side="today"
                   />
                   {(showTodayHomeScreen || showTodayAuthScreen) && (
                     <div style={{ position: 'absolute', inset: 0, zIndex: 1050, background: '#000' }} />
@@ -565,6 +587,7 @@ function App() {
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
                     startEventName="START_AUTOPILOT_DEMO_FUTURE"
+                    side="future"
                   />
                   {(showFutureHomeScreen || showFutureAuthScreen) && (
                     <div style={{ position: 'absolute', inset: 0, zIndex: 1050, background: '#000' }} />
