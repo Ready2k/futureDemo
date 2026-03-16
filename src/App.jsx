@@ -7,7 +7,7 @@ import { PlatformOverlay } from './components/PlatformOverlay';
 import { HomeScreenIntro } from './components/HomeScreenIntro';
 import { BiometricAuthScreen } from './components/BiometricAuthScreen';
 import { useBanking } from './context/BankingContext';
-import { Home, ArrowLeftRight, CreditCard, MessageCircle, Wifi, BatteryMedium, Signal, Zap, RotateCcw, ChevronDown, Sun, Moon, Play, Pause, FastForward, Rewind, List, Columns2 } from 'lucide-react';
+import { Home, ArrowLeftRight, CreditCard, MessageCircle, Wifi, BatteryMedium, Signal, Zap, RotateCcw, ChevronDown, Sun, Moon, Play, Pause, FastForward, Rewind, List, Columns2, Mic, Type } from 'lucide-react';
 import { ComparisonAdvisor } from './components/ComparisonAdvisor';
 
 // Thin ambient header shown when header is collapsed
@@ -129,15 +129,17 @@ function App() {
   const [comparisonMode, setComparisonMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [inputMode, setInputMode] = useState('typed'); // 'typed' | 'voice'
+  const [introQuery, setIntroQuery] = useState({ typed: '', voice: '' });
   const [showHomeScreen, setShowHomeScreen] = useState(false);
   const [showAuthScreen, setShowAuthScreen] = useState(false);
-  const pendingQueryRef = useRef(null);
   const [aiGlow, setAiGlow] = useState(false);
+  const comparisonIntroRequestRef = useRef({ today: null, future: null });
+  const comparisonAuthDoneRef = useRef({ today: false, future: false });
   const [demoPhaseLabel, setDemoPhaseLabel] = useState(null);
   const [demoPhase, setDemoPhase] = useState(0);
   const [demoTotal, setDemoTotal] = useState(6);
   const [demoRunning, setDemoRunning] = useState(false);
-  const comparisonGateRef = useRef({ today: false, future: false });
   const [showTodayHomeScreen, setShowTodayHomeScreen] = useState(false);
   const [showTodayAuthScreen, setShowTodayAuthScreen] = useState(false);
   const [showFutureHomeScreen, setShowFutureHomeScreen] = useState(false);
@@ -210,78 +212,86 @@ function App() {
     return () => window.removeEventListener('AUTOPILOT_PLAY_STATE', onPlayState);
   }, []);
 
-  // Comparison mode: gate coordinator — fires COMPARISON_PROCEED when both panels finish scene 1
+  // SCENE_INTRO_REQUEST: show HomeScreen intro before each scene
   useEffect(() => {
-    const onDone = (e) => {
-      const gate = comparisonGateRef.current;
-      gate[e.detail.side] = true;
-      if (gate.today && gate.future) {
-        gate.today = false;
-        gate.future = false;
-        window.dispatchEvent(new CustomEvent('COMPARISON_PROCEED'));
+    const onRequest = (e) => {
+      const { side, typedQuery, voiceQuery } = e.detail;
+      if (side) {
+        // Comparison mode — wait for both panels to request before showing any HomeScreen
+        comparisonIntroRequestRef.current[side] = e.detail;
+        const { today, future } = comparisonIntroRequestRef.current;
+        if (today && future && today.sceneIndex === future.sceneIndex) {
+          comparisonIntroRequestRef.current = { today: null, future: null };
+          comparisonAuthDoneRef.current = { today: false, future: false };
+          setIntroQuery({ typed: typedQuery, voice: voiceQuery });
+          setShowTodayHomeScreen(true);
+          setShowFutureHomeScreen(true);
+        }
+      } else {
+        // Single phone
+        setIntroQuery({ typed: typedQuery, voice: voiceQuery });
+        setShowHomeScreen(true);
       }
     };
-    const onReset = () => { comparisonGateRef.current = { today: false, future: false }; };
-    window.addEventListener('COMPARISON_SCENE1_DONE', onDone);
+    const onReset = () => {
+      comparisonIntroRequestRef.current = { today: null, future: null };
+      comparisonAuthDoneRef.current = { today: false, future: false };
+    };
+    window.addEventListener('SCENE_INTRO_REQUEST', onRequest);
     window.addEventListener('RESET_CHAT', onReset);
     return () => {
-      window.removeEventListener('COMPARISON_SCENE1_DONE', onDone);
+      window.removeEventListener('SCENE_INTRO_REQUEST', onRequest);
       window.removeEventListener('RESET_CHAT', onReset);
     };
   }, []);
 
+
   const handleDemoClick = () => {
     if (demoRunning) return;
     setDemoRunning(true);
+    setDemoPhase(0);
+    setDemoPhaseLabel('Starting…');
     setShowPlatformOverlay(false);
     if (comparisonMode) {
-      setDemoPhaseLabel('Scene 0 — Ambient Entry');
-      setDemoPhase(0);
-      // Both phones show HomeScreenIntro — Future's completes ~5.5s faster (no Siri failure/Spotlight)
-      setShowTodayHomeScreen(true);
-      setShowFutureHomeScreen(true);
+      window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO_TODAY'));
+      window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO_FUTURE'));
     } else {
-      setDemoPhaseLabel('Scene 0 — Ambient Entry');
-      setDemoPhase(0);
-      // Show home screen first — it fires START_AUTOPILOT_DEMO on completion
-      setShowHomeScreen(true);
+      window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO'));
     }
   };
 
-  const handleHomeScreenComplete = (query) => {
+  // Single phone: HomeScreen → BiometricAuth → SCENE_INTRO_COMPLETE
+  const handleHomeScreenComplete = () => {
     setShowHomeScreen(false);
     setAiGlow(false);
-    setDemoPhaseLabel('Scene 0 — Authenticating…');
-    pendingQueryRef.current = query || null;
     setShowAuthScreen(true);
   };
-
   const handleAuthComplete = () => {
     setShowAuthScreen(false);
-    setDemoPhaseLabel('Starting…');
-    setDemoPhase(1);
-    window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO', { detail: { pendingQuery: pendingQueryRef.current } }));
-    pendingQueryRef.current = null;
+    window.dispatchEvent(new CustomEvent('SCENE_INTRO_COMPLETE'));
   };
 
-  const handleTodayHomeComplete = () => {
-    setShowTodayHomeScreen(false);
-    setShowTodayAuthScreen(true);
-  };
-
-  const handleFutureHomeComplete = () => {
-    setShowFutureHomeScreen(false);
-    setShowFutureAuthScreen(true);
-  };
+  // Comparison: HomeScreen → BiometricAuth; both auths done → fire SCENE_INTRO_COMPLETE for each side
+  const handleTodayHomeComplete = () => { setShowTodayHomeScreen(false); setShowTodayAuthScreen(true); };
+  const handleFutureHomeComplete = () => { setShowFutureHomeScreen(false); setShowFutureAuthScreen(true); };
 
   const handleTodayAuthComplete = () => {
     setShowTodayAuthScreen(false);
-    window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO_TODAY'));
+    comparisonAuthDoneRef.current.today = true;
+    if (comparisonAuthDoneRef.current.future) {
+      comparisonAuthDoneRef.current = { today: false, future: false };
+      window.dispatchEvent(new CustomEvent('SCENE_INTRO_COMPLETE_TODAY'));
+      window.dispatchEvent(new CustomEvent('SCENE_INTRO_COMPLETE_FUTURE'));
+    }
   };
-
   const handleFutureAuthComplete = () => {
     setShowFutureAuthScreen(false);
-    window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO_FUTURE'));
+    comparisonAuthDoneRef.current.future = true;
+    if (comparisonAuthDoneRef.current.today) {
+      comparisonAuthDoneRef.current = { today: false, future: false };
+      window.dispatchEvent(new CustomEvent('SCENE_INTRO_COMPLETE_TODAY'));
+      window.dispatchEvent(new CustomEvent('SCENE_INTRO_COMPLETE_FUTURE'));
+    }
   };
 
   const handleReset = () => {
@@ -291,6 +301,7 @@ function App() {
     setShowPlatformOverlay(false);
     setShowHomeScreen(false);
     setShowAuthScreen(false);
+    setAiGlow(false);
     setShowTodayHomeScreen(false);
     setShowTodayAuthScreen(false);
     setShowFutureHomeScreen(false);
@@ -386,6 +397,22 @@ function App() {
             <div style={{ width: '26px', height: '15px', borderRadius: '100px', background: 'rgba(255,255,255,0.2)', position: 'relative', flexShrink: 0 }}>
               <div style={{ width: '11px', height: '11px', background: 'white', borderRadius: '50%', position: 'absolute', top: '2px', left: futureMode ? '13px' : '2px', transition: 'left 0.25s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
             </div>
+          </div>
+
+          {/* Input mode: Typed / Voice */}
+          <div
+            onClick={() => setInputMode(m => m === 'typed' ? 'voice' : 'typed')}
+            style={{
+              background: inputMode === 'voice' ? 'rgba(162,89,255,0.15)' : '#1a1a1a',
+              border: `1px solid ${inputMode === 'voice' ? 'rgba(162,89,255,0.4)' : '#272727'}`,
+              borderRadius: '100px', padding: '7px 14px',
+              color: inputMode === 'voice' ? '#a78bfa' : '#555',
+              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+              fontSize: '0.78rem', fontFamily: 'inherit', transition: 'all 0.25s',
+            }}
+          >
+            {inputMode === 'voice' ? <Mic size={13} /> : <Type size={13} />}
+            <span>{inputMode === 'voice' ? 'Voice' : 'Typed'}</span>
           </div>
 
           {/* Compare mode */}
@@ -560,6 +587,9 @@ function App() {
                         playing={demoPlaying}
                         onGlow={() => {}}
                         onComplete={handleTodayHomeComplete}
+                        query={introQuery.typed}
+                        voiceQuery={introQuery.voice}
+                        inputMode={inputMode}
                       />
                     )}
                   </AnimatePresence>
@@ -604,6 +634,9 @@ function App() {
                         playing={demoPlaying}
                         onGlow={() => {}}
                         onComplete={handleFutureHomeComplete}
+                        query={introQuery.typed}
+                        voiceQuery={introQuery.voice}
+                        inputMode={inputMode}
                       />
                     )}
                   </AnimatePresence>
@@ -631,7 +664,15 @@ function App() {
             </AnimatePresence>
             <AnimatePresence>
               {showHomeScreen && (
-                <HomeScreenIntro onGlow={() => setAiGlow(true)} onComplete={handleHomeScreenComplete} playing={demoPlaying} futureMode={futureMode} />
+                <HomeScreenIntro
+                  onGlow={() => setAiGlow(true)}
+                  onComplete={handleHomeScreenComplete}
+                  playing={demoPlaying}
+                  futureMode={futureMode}
+                  query={introQuery.typed}
+                  voiceQuery={introQuery.voice}
+                  inputMode={inputMode}
+                />
               )}
             </AnimatePresence>
           </div>

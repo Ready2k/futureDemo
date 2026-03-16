@@ -246,12 +246,12 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
 
   useEffect(() => {
     const SCENES = [
-      { label: 'Scene 1 of 6 — Financial Awareness', queries: ['How much money can I spend this month?'], readTime: 18000 },
-      { label: 'Scene 2 of 6 — Spending Insight', queries: ['Where does my money go each month?'], readTime: 18000 },
-      { label: 'Scene 3 of 6 — Affordability Reasoning', queries: ['Can I afford a £900 holiday?'], readTime: 18000 },
-      { label: 'Scene 4 of 6 — Safe Transfer', queries: ['Move £600 from savings to current.'], readTime: 20000, readTimeToday: 10000, accountSelect: true },
-      { label: 'Scene 5 of 6 — Behavioural Intelligence', queries: null, readTime: 16000, proactive: true },
-      { label: 'Scene 6 of 6 — Intelligent Support', queries: ['What is this £85 charge from Northline Services?'], readTime: 24000, multiStep: true },
+      { label: 'Scene 1 of 6 — Financial Awareness',    queries: ['How much money can I spend this month?'],        introTypedQuery: 'How much money can I spend this month?',       introVoiceQuery: 'Hey Siri, how much can I spend this month?',                             readTime: 18000 },
+      { label: 'Scene 2 of 6 — Spending Insight',       queries: ['Where does my money go each month?'],           introTypedQuery: 'Where does my money go each month?',           introVoiceQuery: 'Hey Siri, where does all my money go?',                                 readTime: 18000 },
+      { label: 'Scene 3 of 6 — Affordability Reasoning',queries: ['Can I afford a £900 holiday?'],                 introTypedQuery: 'Can I afford a £900 holiday?',                 introVoiceQuery: 'Hey Siri, I want to go on holiday — can I afford it? About £900.',      readTime: 18000 },
+      { label: 'Scene 4 of 6 — Safe Transfer',          queries: ['Move £600 from savings to current.'],           introTypedQuery: 'Move £600 from savings to current',            introVoiceQuery: 'Hey Siri, move £600 from my savings to my current account',             readTime: 20000, accountSelect: true },
+      { label: 'Scene 5 of 6 — Behavioural Intelligence',queries: null, readTime: 16000, proactive: true },
+      { label: 'Scene 6 of 6 — Intelligent Support',    queries: ['What is this £85 charge from Northline Services?'], introTypedQuery: 'What is this £85 charge from Northline Services?', introVoiceQuery: "Hey Siri, what's this £85 charge on my account from Northline?", readTime: 24000, multiStep: true },
     ];
 
     const dispatch = (label, extra = {}) =>
@@ -267,7 +267,21 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
       window.dispatchEvent(new CustomEvent('AUTOPILOT_PLAY_STATE', { detail: { playing: true } }));
 
       let i = e?.detail?.startIndex || 0;
-      let siriHandoff = e?.detail?.pendingQuery || null; // consumed once for seamless 2028 handoff
+
+      // Wait for App.jsx to show HomeScreen intro + BiometricAuth for this scene
+      const waitForIntro = async (sceneIndex, typedQuery, voiceQuery) => {
+        const completeEvent = sideRef.current
+          ? `SCENE_INTRO_COMPLETE_${sideRef.current.toUpperCase()}`
+          : 'SCENE_INTRO_COMPLETE';
+        let done = false;
+        const handler = () => { done = true; };
+        window.addEventListener(completeEvent, handler);
+        window.dispatchEvent(new CustomEvent('SCENE_INTRO_REQUEST', {
+          detail: { side: sideRef.current, sceneIndex, typedQuery, voiceQuery },
+        }));
+        while (!done) { await wait(100); }
+        window.removeEventListener(completeEvent, handler);
+      };
 
       const wait = async (ms) => {
         let elapsed = 0;
@@ -319,6 +333,10 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
             const scene = SCENES[i];
             
             try {
+                // Show HomeScreen intro + BiometricAuth before every scene (except proactive)
+                if (!scene.proactive) {
+                  await waitForIntro(i, scene.introTypedQuery, scene.introVoiceQuery);
+                }
                 resetChat();
                 dispatch(scene.label, { phase: i + 1, total: SCENES.length });
                 await wait(700);
@@ -398,34 +416,11 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
                   }
                 } else {
                   for (const query of scene.queries) {
-                    if (siriHandoff) {
-                      siriHandoff = null; // consume — Siri already captured this query
-                      await wait(500);
-                      processInputRef.current(query);
-                      await wait(2200);
-                    } else {
-                      await typeText(query);
-                    }
+                    await typeText(query);
                   }
                 }
                 
-                // In comparison mode use readTime for both phones so they stay in sync
-                const rt = sideRef.current
-                  ? scene.readTime
-                  : (!futureModeRef.current && scene.readTimeToday != null ? scene.readTimeToday : scene.readTime);
-                await wait(rt);
-
-                // Comparison sync barrier: after scene 1, both panels wait for each other
-                // before starting scene 2 so they stay in lockstep from here onwards
-                if (sideRef.current && i === 0) {
-                  let gateOpen = false;
-                  const gateHandler = () => { gateOpen = true; };
-                  window.addEventListener('COMPARISON_PROCEED', gateHandler);
-                  window.dispatchEvent(new CustomEvent('COMPARISON_SCENE1_DONE', { detail: { side: sideRef.current } }));
-                  while (!gateOpen) { await wait(100); }
-                  window.removeEventListener('COMPARISON_PROCEED', gateHandler);
-                }
-
+                await wait(scene.readTime);
                 i++;
             } catch (err) {
                 if (err.message === 'Abort') throw err;
@@ -463,7 +458,7 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
       window.removeEventListener(startEventName, startAutopilot);
       window.removeEventListener('RESET_CHAT', handleReset);
     };
-  }, [startEventName, side]);
+  }, [startEventName]);
 
   // ── Intent Handlers ──────────────────────────────────────────────────────
   const handleIntent = (intentData, originalText) => {

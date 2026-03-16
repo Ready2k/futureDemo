@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Signal, Wifi, BatteryMedium, Search } from 'lucide-react';
 
-// Standard iPhone home apps - no banking, no branding
 const HOME_APPS = [
   { name: 'Weather',  bg: 'linear-gradient(160deg, #1a6fa4, #32ade6)', icon: '🌤️' },
   { name: 'Maps',     bg: 'linear-gradient(160deg, #2b6cb0, #4299e1)', icon: '🗺️' },
@@ -21,36 +20,43 @@ const DOCK_APPS = [
   { icon: '📷', bg: 'linear-gradient(160deg, #2d3748, #4a5568)' },
 ];
 
-const QUERY           = "How much money can I spend this month?";
 const SPOTLIGHT_QUERY = "Barclays";
+const SPOT_CHAR_MS    = 80;
+const CHAR_MS         = 50;
+const WORD_MS         = 300;
 
-// Shared timing (ms)
-const T_GLOW  = 1500;
-const T_BAR   = 2100;
-const T_TYPE  = 2700;
-const CHAR_MS = 50;
-const T_DONE  = T_TYPE + QUERY.length * CHAR_MS;   // ~4.65s
+export const HomeScreenIntro = ({
+  onGlow,
+  onComplete,
+  playing,
+  futureMode,
+  query     = "How much money can I spend this month?",
+  voiceQuery = "Hey Siri, how much can I spend this month?",
+  inputMode = 'typed',
+}) => {
+  const activeQuery = inputMode === 'voice' ? voiceQuery : query;
 
-// 2028 mode — seamless handoff to BiometricAuth
-const T_EXIT_FUTURE   = T_DONE + 750;
-const T_FINISH_FUTURE = T_EXIT_FUTURE + 800;
+  // Timing — computed from active query so each scene has correct durations
+  const typingUnits = inputMode === 'voice' ? activeQuery.split(' ').length : activeQuery.length;
+  const T_GLOW  = 1500;
+  const T_BAR   = 2100;
+  const T_TYPE  = 2700;
+  const T_DONE  = T_TYPE + typingUnits * (inputMode === 'voice' ? WORD_MS : CHAR_MS);
+  const T_EXIT_FUTURE   = T_DONE + 750;
+  const T_FINISH_FUTURE = T_EXIT_FUTURE + 800;
+  const T_SIRI_RESP     = T_DONE + 900;
+  const T_BAR_DISMISS   = T_SIRI_RESP + 1800;
+  const T_SPOTLIGHT     = T_BAR_DISMISS + 600;
+  const T_SPOT_TYPE     = T_SPOTLIGHT + 500;
+  const T_SPOT_DONE     = T_SPOT_TYPE + SPOTLIGHT_QUERY.length * SPOT_CHAR_MS;
+  const T_TAP           = T_SPOT_DONE + 700;
+  const T_EXIT_TODAY    = T_TAP + 500;
+  const T_FINISH_TODAY  = T_EXIT_TODAY + 800;
 
-// Today mode — Siri fails → manual Spotlight search → open Barclays
-const SPOT_CHAR_MS   = 80;
-const T_SIRI_RESP    = T_DONE + 900;                                          // ~5.55s
-const T_BAR_DISMISS  = T_SIRI_RESP + 1800;                                   // ~7.35s
-const T_SPOTLIGHT    = T_BAR_DISMISS + 600;                                   // ~7.95s
-const T_SPOT_TYPE    = T_SPOTLIGHT + 500;                                     // ~8.45s
-const T_SPOT_DONE    = T_SPOT_TYPE + SPOTLIGHT_QUERY.length * SPOT_CHAR_MS;  // ~9.0s
-const T_TAP          = T_SPOT_DONE + 700;                                     // ~9.7s
-const T_EXIT_TODAY   = T_TAP + 500;                                           // ~10.2s
-const T_FINISH_TODAY = T_EXIT_TODAY + 800;                                    // ~11.0s
-
-export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => {
-  const [phase, setPhase]             = useState(0);
-  const [typedText, setTypedText]     = useState('');
+  const [phase, setPhase]           = useState(0);
+  const [typedText, setTypedText]   = useState('');
   const [spotlightText, setSpotlightText] = useState('');
-  const [exiting, setExiting]         = useState(false);
+  const [exiting, setExiting]       = useState(false);
 
   const [displayTime] = useState(() =>
     new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })
@@ -59,28 +65,38 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
     new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
   );
 
-  // Pauseable timer state
-  const futureModeRef  = useRef(futureMode);
-  const elapsedRef     = useRef(0);
-  const lastResumeRef  = useRef(Date.now());
-  const timersRef      = useRef([]);
-  const typingRef      = useRef({ interval: null, charCount: 0 });
-  const spotTypingRef  = useRef({ interval: null, charCount: 0 });
-  const phaseRef       = useRef(0);
+  const futureModeRef = useRef(futureMode);
+  const elapsedRef    = useRef(0);
+  const lastResumeRef = useRef(Date.now());
+  const timersRef     = useRef([]);
+  const typingRef     = useRef({ interval: null, charCount: 0 });
+  const spotTypingRef = useRef({ interval: null, charCount: 0 });
+  const phaseRef      = useRef(0);
 
   useEffect(() => { futureModeRef.current = futureMode; }, [futureMode]);
 
   const stopTyping = () => {
     if (typingRef.current.interval) { clearInterval(typingRef.current.interval); typingRef.current.interval = null; }
   };
+
   const startTyping = () => {
     stopTyping();
-    const iv = setInterval(() => {
-      typingRef.current.charCount++;
-      setTypedText(QUERY.substring(0, typingRef.current.charCount));
-      if (typingRef.current.charCount >= QUERY.length) { clearInterval(iv); typingRef.current.interval = null; }
-    }, CHAR_MS);
-    typingRef.current.interval = iv;
+    if (inputMode === 'voice') {
+      const words = activeQuery.split(' ');
+      const iv = setInterval(() => {
+        typingRef.current.charCount++;
+        setTypedText(words.slice(0, typingRef.current.charCount).join(' '));
+        if (typingRef.current.charCount >= words.length) { clearInterval(iv); typingRef.current.interval = null; }
+      }, WORD_MS);
+      typingRef.current.interval = iv;
+    } else {
+      const iv = setInterval(() => {
+        typingRef.current.charCount++;
+        setTypedText(activeQuery.substring(0, typingRef.current.charCount));
+        if (typingRef.current.charCount >= activeQuery.length) { clearInterval(iv); typingRef.current.interval = null; }
+      }, CHAR_MS);
+      typingRef.current.interval = iv;
+    }
   };
 
   const stopSpotTyping = () => {
@@ -108,21 +124,15 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
       { t: T_BAR,           fn: bump(2) },
       { t: T_TYPE,          fn: bump(3, startTyping) },
       { t: T_EXIT_FUTURE,   fn: () => setExiting(true) },
-      { t: T_FINISH_FUTURE, fn: () => onComplete(QUERY) },
+      { t: T_FINISH_FUTURE, fn: () => onComplete(query) },
     ] : [
-      // Today: glow activates (Siri attempts) but no outer device glow
       { t: T_GLOW,          fn: bump(1) },
       { t: T_BAR,           fn: bump(2) },
       { t: T_TYPE,          fn: bump(3, startTyping) },
-      // Siri responds that it can't access banking data
       { t: T_SIRI_RESP,     fn: bump(4) },
-      // Siri bar slides away
       { t: T_BAR_DISMISS,   fn: bump(5) },
-      // User opens Spotlight manually
       { t: T_SPOTLIGHT,     fn: bump(6) },
-      // User types "Barclays"
       { t: T_SPOT_TYPE,     fn: bump(7, startSpotTyping) },
-      // User taps the Barclays result
       { t: T_TAP,           fn: bump(8) },
       { t: T_EXIT_TODAY,    fn: () => setExiting(true) },
       { t: T_FINISH_TODAY,  fn: onComplete },
@@ -134,35 +144,43 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
     lastResumeRef.current = Date.now();
   };
 
-  // Initial schedule on mount
   useEffect(() => {
     schedule(0);
     return () => { clearTimers(); stopTyping(); stopSpotTyping(); };
   }, []);
 
-  // Pause / resume
   useEffect(() => {
     if (playing === false) {
       elapsedRef.current += Date.now() - lastResumeRef.current;
-      clearTimers();
-      stopTyping();
-      stopSpotTyping();
+      clearTimers(); stopTyping(); stopSpotTyping();
     } else if (playing === true && elapsedRef.current > 0) {
       schedule(elapsedRef.current);
-      if (phaseRef.current === 3 && typingRef.current.charCount < QUERY.length) startTyping();
+      if (phaseRef.current === 3 && typingRef.current.charCount < typingUnits) startTyping();
       if (phaseRef.current === 7 && spotTypingRef.current.charCount < SPOTLIGHT_QUERY.length) startSpotTyping();
     }
   }, [playing]);
 
-  const isTypingDone = typedText.length === QUERY.length;
-  const isSpotDone   = spotlightText.length === SPOTLIGHT_QUERY.length;
-
-  // Derived visibility
-  const glowVisible    = futureMode ? phase >= 1 : (phase >= 1 && phase < 5);
+  const isTypingDone  = typedText === activeQuery;
+  const isSpotDone    = spotlightText.length === SPOTLIGHT_QUERY.length;
+  const glowVisible   = futureMode ? phase >= 1 : (phase >= 1 && phase < 5);
   const siriBarVisible = futureMode ? phase >= 2 : (phase >= 2 && phase < 5);
-  const siriCantHelp   = !futureMode && phase === 4;
-  const spotlightOpen  = !futureMode && phase >= 6;
+  const siriCantHelp  = !futureMode && phase === 4;
+  const spotlightOpen = !futureMode && phase >= 6;
   const spotlightTapped = !futureMode && phase >= 8;
+
+  // Voice mode: style "Hey Siri, " prefix differently
+  const renderQueryText = () => {
+    if (!typedText) return null;
+    if (inputMode === 'voice') {
+      const m = typedText.match(/^(Hey Siri,?\s*)/i);
+      if (m) {
+        const prefix = m[1];
+        const rest = typedText.slice(prefix.length);
+        return <><span style={{ color: 'rgba(255,255,255,0.38)', fontStyle: 'italic', fontSize: '0.82rem' }}>{prefix}</span>{rest}</>;
+      }
+    }
+    return typedText;
+  };
 
   return (
     <motion.div
@@ -177,7 +195,7 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
         overflow: 'hidden',
       }}
     >
-      {/* ── Apple Intelligence border glow ──────────────────────────────────── */}
+      {/* Apple Intelligence border glow */}
       <motion.div
         animate={{ opacity: glowVisible ? 1 : 0 }}
         transition={{ duration: 0.7 }}
@@ -205,7 +223,6 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
           background: 'radial-gradient(circle, rgba(0,170,255,0.28), transparent 70%)', borderRadius: '50%' }} />
       </motion.div>
 
-      {/* Subtle screen dim when AI activates */}
       <motion.div
         animate={{ background: glowVisible ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0)' }}
         transition={{ duration: 0.6 }}
@@ -214,8 +231,10 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
 
       {/* Ambient wallpaper orbs */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 1 }}>
-        <div style={{ position: 'absolute', top: '18%', left: '8%',  width: '240px', height: '240px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,140,255,0.09) 0%, transparent 70%)' }} />
-        <div style={{ position: 'absolute', top: '52%', right: '-5%', width: '200px', height: '200px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(130,80,255,0.07) 0%, transparent 70%)' }} />
+        <div style={{ position: 'absolute', top: '18%', left: '8%', width: '240px', height: '240px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(0,140,255,0.09) 0%, transparent 70%)' }} />
+        <div style={{ position: 'absolute', top: '52%', right: '-5%', width: '200px', height: '200px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(130,80,255,0.07) 0%, transparent 70%)' }} />
       </div>
 
       {/* Status bar */}
@@ -262,11 +281,9 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}
           >
             <div style={{
-              width: '60px', height: '60px', borderRadius: '15px',
-              background: app.bg,
+              width: '60px', height: '60px', borderRadius: '15px', background: app.bg,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.6rem',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.45)',
+              fontSize: '1.6rem', boxShadow: '0 4px 14px rgba(0,0,0,0.45)',
             }}>{app.icon}</div>
             <span style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.8)', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
               {app.name}
@@ -281,16 +298,14 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
         style={{
           margin: '12px 18px 0', padding: '10px 16px',
           background: 'rgba(255,255,255,0.09)', backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRadius: '26px', display: 'flex', justifyContent: 'space-around',
-          position: 'relative', zIndex: 40,
+          WebkitBackdropFilter: 'blur(20px)', borderRadius: '26px',
+          display: 'flex', justifyContent: 'space-around', position: 'relative', zIndex: 40,
         }}
       >
         {DOCK_APPS.map((app, i) => (
           <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 + i * 0.05 }}>
             <div style={{
-              width: '54px', height: '54px', borderRadius: '14px',
-              background: app.bg,
+              width: '54px', height: '54px', borderRadius: '14px', background: app.bg,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '1.5rem', boxShadow: '0 3px 10px rgba(0,0,0,0.4)',
             }}>{app.icon}</div>
@@ -298,7 +313,7 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
         ))}
       </motion.div>
 
-      {/* ── Siri / Apple Intelligence input bar ─────────────────────────────── */}
+      {/* Siri / Apple Intelligence input bar */}
       <motion.div
         initial={{ opacity: 0, y: 48, scale: 0.97 }}
         animate={siriBarVisible ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 48, scale: 0.97 }}
@@ -306,8 +321,7 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
         style={{
           margin: '10px 14px 30px',
           background: 'rgba(255,255,255,0.13)',
-          backdropFilter: 'blur(32px)',
-          WebkitBackdropFilter: 'blur(32px)',
+          backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)',
           borderRadius: '22px',
           border: `1.5px solid ${phase >= 3 ? 'rgba(162,89,255,0.55)' : 'rgba(255,255,255,0.18)'}`,
           padding: '14px 16px',
@@ -319,7 +333,7 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Siri waveform orb */}
+          {/* Siri orb */}
           <div style={{
             width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
             background: phase >= 1
@@ -330,28 +344,35 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
             boxShadow: phase >= 1 ? '0 0 14px rgba(162,89,255,0.5)' : 'none',
           }} />
 
-          {/* Text area */}
+          {/* Text */}
           <div style={{ flex: 1, fontSize: '0.92rem', color: 'white', minHeight: '20px', letterSpacing: '0.01em' }}>
             {phase >= 3 ? (
               <>
-                {typedText}
-                {!isTypingDone && (
+                {renderQueryText()}
+                {/* Typed mode: blinking cursor. Voice mode: pulsing mic dot */}
+                {!isTypingDone && inputMode === 'typed' && (
                   <span style={{
                     display: 'inline-block', width: '2px', height: '15px',
-                    background: 'rgba(255,255,255,0.85)',
-                    marginLeft: '1px', verticalAlign: 'middle',
-                    animation: 'blink 0.6s step-end infinite',
+                    background: 'rgba(255,255,255,0.85)', marginLeft: '1px',
+                    verticalAlign: 'middle', animation: 'blink 0.6s step-end infinite',
+                  }} />
+                )}
+                {!isTypingDone && inputMode === 'voice' && (
+                  <span style={{
+                    display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%',
+                    background: 'rgba(162,89,255,0.9)', marginLeft: '4px',
+                    verticalAlign: 'middle', animation: 'blink 0.5s ease-in-out infinite',
                   }} />
                 )}
               </>
             ) : (
               <span style={{ color: 'rgba(255,255,255,0.32)', fontStyle: 'normal', fontSize: '0.88rem' }}>
-                Ask me anything…
+                {inputMode === 'voice' ? 'Listening…' : 'Ask me anything…'}
               </span>
             )}
           </div>
 
-          {/* Mic → send transition */}
+          {/* Mic / send */}
           {isTypingDone ? (
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
@@ -367,11 +388,15 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
               <span style={{ color: 'white', fontSize: '0.8rem', fontWeight: '700' }}>↑</span>
             </motion.div>
           ) : (
-            <Mic size={17} color="rgba(255,255,255,0.38)" style={{ flexShrink: 0 }} />
+            <Mic
+              size={17}
+              color={inputMode === 'voice' && phase >= 1 ? 'rgba(162,89,255,0.9)' : 'rgba(255,255,255,0.38)'}
+              style={{ flexShrink: 0, animation: inputMode === 'voice' && phase >= 1 && !isTypingDone ? 'blink 1.2s ease-in-out infinite' : 'none' }}
+            />
           )}
         </div>
 
-        {/* Today mode: Siri "can't help" response */}
+        {/* Today: Siri "can't help" */}
         <AnimatePresence>
           {siriCantHelp && (
             <motion.div
@@ -396,7 +421,7 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
         </AnimatePresence>
       </motion.div>
 
-      {/* ── Spotlight overlay — Today mode only ─────────────────────────────── */}
+      {/* Spotlight — Today mode only */}
       {spotlightOpen && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -404,18 +429,15 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
           transition={{ duration: 0.28 }}
           style={{
             position: 'absolute', inset: 0, zIndex: 45,
-            background: 'rgba(8,6,22,0.88)',
-            backdropFilter: 'blur(22px)',
+            background: 'rgba(8,6,22,0.88)', backdropFilter: 'blur(22px)',
             WebkitBackdropFilter: 'blur(22px)',
             display: 'flex', flexDirection: 'column',
             padding: '62px 14px 0',
             fontFamily: "-apple-system, 'Open Sans', sans-serif",
           }}
         >
-          {/* Search field */}
           <div style={{
-            background: 'rgba(255,255,255,0.14)',
-            borderRadius: '14px', padding: '11px 14px',
+            background: 'rgba(255,255,255,0.14)', borderRadius: '14px', padding: '11px 14px',
             display: 'flex', alignItems: 'center', gap: '10px',
             border: '1px solid rgba(255,255,255,0.2)',
           }}>
@@ -433,20 +455,12 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
             <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem', flexShrink: 0 }}>Cancel</span>
           </div>
 
-          {/* Barclays result — appears as user types */}
           {spotlightText.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {/* Section label */}
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
               <div style={{ color: 'rgba(255,255,255,0.28)', fontSize: '0.72rem', fontWeight: '600',
                 letterSpacing: '0.06em', textTransform: 'uppercase', margin: '16px 4px 8px' }}>
                 Applications
               </div>
-
-              {/* App row */}
               <motion.div
                 animate={spotlightTapped ? { scale: 0.97, background: 'rgba(0,174,239,0.15)' } : { scale: 1, background: 'rgba(255,255,255,0.09)' }}
                 transition={{ duration: 0.12 }}
@@ -457,7 +471,6 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
                   transition: 'border 0.15s',
                 }}
               >
-                {/* Barclays icon */}
                 <div style={{
                   width: '44px', height: '44px', borderRadius: '11px', flexShrink: 0,
                   background: 'linear-gradient(155deg, #00AEEF 0%, #00395D 100%)',
@@ -474,7 +487,6 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
             </motion.div>
           )}
 
-          {/* Empty state hint */}
           {spotlightText.length === 0 && (
             <div style={{ textAlign: 'center', marginTop: '36px', color: 'rgba(255,255,255,0.2)', fontSize: '0.8rem' }}>
               Siri Suggestions
@@ -483,12 +495,11 @@ export const HomeScreenIntro = ({ onGlow, onComplete, playing, futureMode }) => 
         </motion.div>
       )}
 
-      {/* Keyframes */}
       <style>{`
-        @keyframes blink       { 0%,100%{opacity:1} 50%{opacity:0} }
-        @keyframes aiEdgeH     { 0%{background-position:0% 50%} 100%{background-position:300% 50%} }
-        @keyframes aiEdgeV     { 0%{background-position:50% 0%} 100%{background-position:50% 300%} }
-        @keyframes aiOrbSpin   { from{filter:hue-rotate(0deg)} to{filter:hue-rotate(360deg)} }
+        @keyframes blink     { 0%,100%{opacity:1} 50%{opacity:0} }
+        @keyframes aiEdgeH   { 0%{background-position:0% 50%} 100%{background-position:300% 50%} }
+        @keyframes aiEdgeV   { 0%{background-position:50% 0%} 100%{background-position:50% 300%} }
+        @keyframes aiOrbSpin { from{filter:hue-rotate(0deg)} to{filter:hue-rotate(360deg)} }
       `}</style>
     </motion.div>
   );
