@@ -47,7 +47,7 @@ SAMPLE_RATE="24000"
 REGION="${AWS_DEFAULT_REGION:-eu-west-1}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTPUT_DIR="$SCRIPT_DIR/../public/narration"
+OUTPUT_DIR="$SCRIPT_DIR/../public/narration/today"
 
 # ── Pre-flight checks ─────────────────────────────────────────────────────────
 echo ""
@@ -164,6 +164,6 @@ echo "  ✓  All 7 narration files generated:"
 echo ""
 ls -lh "$OUTPUT_DIR"/*.mp3 | awk '{printf "     %-20s  %s\n", $9, $5}'
 echo ""
-echo "  Files are served from /narration/scene{N}.mp3 by the Vite dev server"
+echo "  Files are served from /narration/today/scene{N}.mp3 by the Vite dev server"
 echo "  and bundled automatically by 'npm run build'."
 echo ""

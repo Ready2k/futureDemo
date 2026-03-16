@@ -175,21 +175,51 @@ function AppInner({ demoMode = 'today', headerCollapsed, onExpand, startEventNam
 // Web Speech API fallback with high-quality audio (Polly / Nova Sonic / Gemini).
 // ─────────────────────────────────────────────────────────────────────────────
 const NARRATIONS = {
-  0: "What you're about to see is a banking experience where natural language replaces app navigation entirely. The customer never opens a menu, never taps through screens. They simply ask — and the bank reasons, acts, and responds. Six scenes. Each one shows a different capability. Let's begin.",
-  1: "Scene one — Financial Awareness. The assistant computes exactly how much is safe to spend this month. Live balances, committed bills, and savings goals — all aggregated in under a second. No app switching, no manual maths.",
-  2: "Scene two — Spending Insight. One question surfaces twelve months of categorised transactions. Housing, transport, restaurants, subscriptions — patterns that would take an hour to find, answered instantly.",
-  3: "Scene three — Affordability Reasoning. The assistant doesn't just check the balance. It models the full impact of a nine hundred pound holiday on cashflow and future savings goals. Reasoning, not just retrieval.",
-  4: "Scene four — Safe Transfer. A transfer request hits the policy engine automatically. Minimum balance rules, confirmation thresholds, and a full audit trail fire without the customer ever knowing they're there.",
-  5: "Scene five — Behavioural Intelligence. The assistant surfaces a restaurant spend anomaly before the customer asks. This is the shift from reactive to proactive — the bank acting as a true financial copilot.",
-  6: "Scene six — Intelligent Support. An unknown charge becomes a dispute, a merchant block, and a rich handoff to a human specialist — orchestrated entirely in one conversation. This is the future of customer support.",
+  // ── Today: manual banking — user does all the reasoning ──────────────────
+  today: {
+    0: "What you're about to see is how most people bank today. You open the app, navigate to your accounts, and make sense of the numbers yourself. Every insight requires a manual step. Six scenes, the same scenarios — no AI, no assistance. Let's begin.",
+    1: "Scene one — Financial Awareness. To find out how much is safe to spend this month, you open the app, check your current account, look at your savings, and mentally subtract what's coming up. The data is there — the reasoning is yours to do.",
+    2: "Scene two — Spending Insight. You want to know where your money goes. You scroll through transactions, filter by category, and spot the patterns yourself. The information exists — finding it takes time.",
+    3: "Scene three — Affordability Reasoning. Can you afford a nine hundred pound holiday? You check your balance, estimate upcoming bills, and make a judgement call. A binary decision, with no cashflow modelling behind it.",
+    4: "Scene four — Safe Transfer. You want to move six hundred pounds from savings to current. Select the account, enter the amount, confirm. Three steps, one action. Which account to use — that decision is entirely yours.",
+    5: "Scene five — Behavioural Intelligence. Your spending has crept up. The bank shows an insight card once a threshold is crossed — useful context, but it surfaces after the pattern has already formed. You see the trend in retrospect.",
+    6: "Scene six — Intelligent Support. An unknown charge appears on your account. You open a support ticket, explain the situation from scratch, and wait for resolution. Every handoff means repeating yourself.",
+  },
+  // ── 2028: AI assistant inside the bank app ───────────────────────────────
+  '2028': {
+    0: "What you're about to see is a banking experience where natural language replaces app navigation entirely. The customer never opens a menu, never taps through screens. They simply ask — and the AI reasons, acts, and responds. Six scenes. Each one shows a different capability. Let's begin.",
+    1: "Scene one — Financial Awareness. The assistant computes exactly how much is safe to spend this month. Live balances, committed bills, and savings goals — all aggregated in under a second. No app switching, no manual maths.",
+    2: "Scene two — Spending Insight. One question surfaces twelve months of categorised transactions. Housing, transport, restaurants, subscriptions — patterns that would take an hour to find, answered instantly.",
+    3: "Scene three — Affordability Reasoning. The assistant doesn't just check the balance. It models the full impact of a nine hundred pound holiday on cashflow and future savings goals. Reasoning, not just retrieval.",
+    4: "Scene four — Safe Transfer. A transfer request hits the policy engine automatically. Minimum balance rules, confirmation thresholds, and a full audit trail fire in the background. Protection, without adding friction.",
+    5: "Scene five — Behavioural Intelligence. The assistant surfaces a restaurant spend anomaly before the customer asks. This is the shift from reactive to proactive — the bank acting as a true financial copilot.",
+    6: "Scene six — Intelligent Support. An unknown charge becomes a dispute, a merchant block, and a rich handoff to a human specialist — orchestrated entirely in one conversation. The future of customer support.",
+  },
+  // ── 2030: ambient AI — bank happens around you ───────────────────────────
+  '2030': {
+    0: "What you're about to see is banking that happens around you. No app to open. No question to ask. A personal AI that's already been working — monitoring, protecting, and optimising across all your financial providers. Six scenes. Ambient intelligence in action. Let's begin.",
+    1: "Scene one — Financial Awareness. Before the customer says a word, their personal AI has already assessed the full picture — current account, savings, and ISA combined, with three active automations already running. The answer is already there.",
+    2: "Scene two — Spending Insight. The AI has already caught a fifty-eight percent spike in dining spend and pre-drafted an adjustment. It's also found a broadband deal saving two hundred and sixteen pounds a year. Two insights surfaced — without being asked.",
+    3: "Scene three — Affordability Reasoning. The AI runs affordability across fourteen financial signals, identifies the optimal funding route, and preserves both the emergency buffer and the savings goal — ready for a single approval tap.",
+    4: "Scene four — Safe Transfer. The transfer executes within pre-authorised delegated limits. No disambiguation, no confirmation required. A trust chain from AI to bank to payment network — with a full audit trail available on demand.",
+    5: "Scene five — Behavioural Intelligence. Ambient protection fires before any limit is reached. The AI pre-drafts adjustments, monitors categories continuously, and reports back. No user initiation — protection just works.",
+    6: "Scene six — Intelligent Support. The AI flagged the suspicious merchant three days before the customer noticed, paused payments, and drafted the dispute. When a human specialist joins, they arrive with zero-recap context already loaded.",
+  },
 };
 
 function App() {
-  const [demoMode, setDemoMode] = useState('today'); // 'today' | '2028' | '2030'
+  const [demoMode, setDemoMode] = useState('2028'); // 'today' | '2028' | '2030' (right side in comp)
   const futureMode = demoMode === '2028'; // backwards-compat for comparison mode + narrator
   const demoModeRef = useRef(demoMode);
-  useEffect(() => { demoModeRef.current = demoMode; }, [demoMode]);
+  // Compare state
   const [comparisonMode, setComparisonMode] = useState(false);
+  const comparisonModeRef = useRef(comparisonMode);
+  const [comparisonLeftMode, setComparisonLeftMode] = useState('today');
+  const comparisonLeftModeRef = useRef(comparisonLeftMode);
+
+  useEffect(() => { demoModeRef.current = demoMode; }, [demoMode]);
+  useEffect(() => { comparisonModeRef.current = comparisonMode; }, [comparisonMode]);
+  useEffect(() => { comparisonLeftModeRef.current = comparisonLeftMode; }, [comparisonLeftMode]);
   const [darkMode, setDarkMode] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [inputMode, setInputMode] = useState('typed'); // 'typed' | 'voice'
@@ -225,11 +255,16 @@ function App() {
   };
 
   const speakNarration = async (phase) => {
-    const text = NARRATIONS[phase];
+    let activeKey = demoModeRef.current;
+    if (comparisonModeRef.current) {
+        activeKey = `compare-${comparisonLeftModeRef.current}-${demoModeRef.current}`;
+    }
+
+    const text = NARRATIONS[activeKey]?.[phase];
     if (!text) return;
     stopNarration();
 
-    const audioPath = `${import.meta.env.BASE_URL}narration/scene${phase}.mp3`;
+    const audioPath = `${import.meta.env.BASE_URL}narration/${activeKey}/scene${phase}.mp3`;
 
     // HEAD request confirms the file exists before we try to play it.
     // This avoids the catch-calls-onerror race that triggered TTS when
@@ -511,6 +546,33 @@ function App() {
 
           {/* Era mode selector */}
           <div style={{ display: 'flex', background: '#1a1a1a', border: '1px solid #272727', borderRadius: '100px', padding: '3px', gap: '2px' }}>
+            {comparisonMode && (
+               <select
+                 value={comparisonLeftMode}
+                 onChange={(e) => setComparisonLeftMode(e.target.value)}
+                 style={{
+                   background: 'transparent',
+                   border: 'none',
+                   color: '#a78bfa',
+                   fontSize: '0.78rem',
+                   fontFamily: 'inherit',
+                   outline: 'none',
+                   cursor: 'pointer',
+                   padding: '0 5px 0 10px',
+                   fontWeight: '700',
+                   appearance: 'none',
+                 }}
+               >
+                 <option value="today">Today</option>
+                 <option value="2028">2028</option>
+                 <option value="2030">2030</option>
+               </select>
+            )}
+
+            {comparisonMode && (
+               <span style={{color: '#555', fontSize: '0.78rem', display: 'flex', alignItems: 'center', padding: '0 4px', fontWeight: 'bold'}}>vs</span>
+            )}
+            
             {[
               { key: 'today', label: 'Today', icon: null },
               { key: '2028', label: '2028', icon: <Zap size={11} fill="white" /> },
@@ -521,6 +583,7 @@ function App() {
               return (
                 <button
                   key={key}
+                  disabled={comparisonMode && key === comparisonLeftMode}
                   onClick={() => setDemoMode(key)}
                   style={{
                     background: active ? (gradients[key] || '#3d3d3d') : 'transparent',
@@ -530,6 +593,7 @@ function App() {
                     display: 'flex', alignItems: 'center', gap: '5px',
                     transition: 'all 0.2s',
                     boxShadow: active && key !== 'today' ? '0 2px 8px rgba(124,58,237,0.3)' : 'none',
+                    opacity: (comparisonMode && key === comparisonLeftMode) ? 0.3 : 1,
                   }}
                 >
                   {icon}{label}
@@ -709,7 +773,7 @@ function App() {
         {comparisonMode ? (
           /* ── Comparison layout: Today | Advisor | Future ── */
           <>
-            {/* Today phone */}
+            {/* Left phone */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
               <div style={{
                 fontSize: '0.6rem', fontWeight: '800', letterSpacing: '0.18em',
@@ -717,12 +781,12 @@ function App() {
                 background: 'rgba(0,174,239,0.08)', border: '1px solid rgba(0,174,239,0.2)',
                 borderRadius: '100px', padding: '3px 12px',
               }}>
-                Today
+                {comparisonLeftMode}
               </div>
               <BankingProvider>
                 <div className="mobile-device-wrapper">
                   <AppInner
-                    demoMode="today"
+                    demoMode={comparisonLeftMode}
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
                     startEventName="START_AUTOPILOT_DEMO_TODAY"
@@ -754,9 +818,9 @@ function App() {
             </div>
 
             {/* Comparison advisor */}
-            <ComparisonAdvisor phase={demoPhase} running={demoRunning} leftMode="today" rightMode={demoMode} />
+            <ComparisonAdvisor phase={demoPhase} running={demoRunning} leftMode={comparisonLeftMode} rightMode={demoMode} />
 
-            {/* Future / 2028 phone */}
+            {/* Right phone */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
               <div style={{
                 fontSize: '0.6rem', fontWeight: '800', letterSpacing: '0.18em',
