@@ -139,6 +139,7 @@ function App() {
   const [demoRunning, setDemoRunning] = useState(false);
   const [showTodayHomeScreen, setShowTodayHomeScreen] = useState(false);
   const [showTodayAuthScreen, setShowTodayAuthScreen] = useState(false);
+  const [showFutureHomeScreen, setShowFutureHomeScreen] = useState(false);
   const [showFutureAuthScreen, setShowFutureAuthScreen] = useState(false);
   const [showPlatformOverlay, setShowPlatformOverlay] = useState(true);
   const [demoPlaying, setDemoPlaying] = useState(true);
@@ -215,10 +216,9 @@ function App() {
     if (comparisonMode) {
       setDemoPhaseLabel('Scene 0 — Ambient Entry');
       setDemoPhase(0);
-      // Today: full HomeScreen → BiometricAuth sequence
+      // Both phones show HomeScreenIntro — Future's completes ~5.5s faster (no Siri failure/Spotlight)
       setShowTodayHomeScreen(true);
-      // Future: skip HomeScreen, go straight to BiometricAuth (faster, frictionless)
-      setShowFutureAuthScreen(true);
+      setShowFutureHomeScreen(true);
     } else {
       setDemoPhaseLabel('Scene 0 — Ambient Entry');
       setDemoPhase(0);
@@ -248,6 +248,11 @@ function App() {
     setShowTodayAuthScreen(true);
   };
 
+  const handleFutureHomeComplete = () => {
+    setShowFutureHomeScreen(false);
+    setShowFutureAuthScreen(true);
+  };
+
   const handleTodayAuthComplete = () => {
     setShowTodayAuthScreen(false);
     window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO_TODAY'));
@@ -267,6 +272,7 @@ function App() {
     setShowAuthScreen(false);
     setShowTodayHomeScreen(false);
     setShowTodayAuthScreen(false);
+    setShowFutureHomeScreen(false);
     setShowFutureAuthScreen(false);
     setAiGlow(false);
     setHeaderCollapsed(false);
@@ -560,12 +566,22 @@ function App() {
                     onExpand={() => setHeaderCollapsed(false)}
                     startEventName="START_AUTOPILOT_DEMO_FUTURE"
                   />
-                  {showFutureAuthScreen && (
+                  {(showFutureHomeScreen || showFutureAuthScreen) && (
                     <div style={{ position: 'absolute', inset: 0, zIndex: 1050, background: '#000' }} />
                   )}
                   <AnimatePresence>
                     {showFutureAuthScreen && (
                       <BiometricAuthScreen onComplete={handleFutureAuthComplete} playing={demoPlaying} />
+                    )}
+                  </AnimatePresence>
+                  <AnimatePresence>
+                    {showFutureHomeScreen && (
+                      <HomeScreenIntro
+                        futureMode={true}
+                        playing={demoPlaying}
+                        onGlow={() => {}}
+                        onComplete={handleFutureHomeComplete}
+                      />
                     )}
                   </AnimatePresence>
                 </div>
