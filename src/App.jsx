@@ -42,7 +42,7 @@ const CollapsedHeader = ({ time, futureMode, totalWealth, onExpand }) => (
 );
 
 // Inner app so we can use useBanking for the collapsed header balance
-function AppInner({ futureMode, headerCollapsed, onExpand }) {
+function AppInner({ futureMode, headerCollapsed, onExpand, startEventName = 'START_AUTOPILOT_DEMO' }) {
   const { profile, discretionaryIncome } = useBanking();
   const isa = profile?.linked_accounts?.natwest_isa;
   const totalWealth = (profile?.accounts.current || 0) + (profile?.accounts.savings || 0) + (futureMode ? (isa?.balance || 0) : 0);
@@ -110,7 +110,7 @@ function AppInner({ futureMode, headerCollapsed, onExpand }) {
         </AnimatePresence>
 
         {/* Conversation Panel — fills remaining space */}
-        <ConversationPanel futureMode={futureMode} />
+        <ConversationPanel futureMode={futureMode} startEventName={startEventName} />
 
         {/* Bottom Nav */}
         <div className="bottom-nav">
@@ -137,10 +137,9 @@ function App() {
   const [demoPhase, setDemoPhase] = useState(0);
   const [demoTotal, setDemoTotal] = useState(6);
   const [demoRunning, setDemoRunning] = useState(false);
-  const [showComparisonHomeScreen, setShowComparisonHomeScreen] = useState(false);
-  const [showComparisonAuthScreen, setShowComparisonAuthScreen] = useState(false);
-  const comparisonHomeDoneRef = useRef(0);
-  const comparisonAuthDoneRef = useRef(0);
+  const [showTodayHomeScreen, setShowTodayHomeScreen] = useState(false);
+  const [showTodayAuthScreen, setShowTodayAuthScreen] = useState(false);
+  const [showFutureAuthScreen, setShowFutureAuthScreen] = useState(false);
   const [showPlatformOverlay, setShowPlatformOverlay] = useState(true);
   const [demoPlaying, setDemoPlaying] = useState(true);
 
@@ -214,11 +213,12 @@ function App() {
     setDemoRunning(true);
     setShowPlatformOverlay(false);
     if (comparisonMode) {
-      // Show ambient entry side-by-side on both phones first
-      comparisonHomeDoneRef.current = 0;
       setDemoPhaseLabel('Scene 0 — Ambient Entry');
       setDemoPhase(0);
-      setShowComparisonHomeScreen(true);
+      // Today: full HomeScreen → BiometricAuth sequence
+      setShowTodayHomeScreen(true);
+      // Future: skip HomeScreen, go straight to BiometricAuth (faster, frictionless)
+      setShowFutureAuthScreen(true);
     } else {
       setDemoPhaseLabel('Scene 0 — Ambient Entry');
       setDemoPhase(0);
@@ -243,24 +243,19 @@ function App() {
     pendingQueryRef.current = null;
   };
 
-  const handleComparisonHomeComplete = () => {
-    comparisonHomeDoneRef.current += 1;
-    if (comparisonHomeDoneRef.current >= 2) {
-      setShowComparisonHomeScreen(false);
-      setDemoPhaseLabel('Scene 0 — Authenticating…');
-      comparisonAuthDoneRef.current = 0;
-      setShowComparisonAuthScreen(true);
-    }
+  const handleTodayHomeComplete = () => {
+    setShowTodayHomeScreen(false);
+    setShowTodayAuthScreen(true);
   };
 
-  const handleComparisonAuthComplete = () => {
-    comparisonAuthDoneRef.current += 1;
-    if (comparisonAuthDoneRef.current >= 2) {
-      setShowComparisonAuthScreen(false);
-      setDemoPhaseLabel('Starting…');
-      setDemoPhase(1);
-      window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO', { detail: { pendingQuery: null } }));
-    }
+  const handleTodayAuthComplete = () => {
+    setShowTodayAuthScreen(false);
+    window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO_TODAY'));
+  };
+
+  const handleFutureAuthComplete = () => {
+    setShowFutureAuthScreen(false);
+    window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO_FUTURE'));
   };
 
   const handleReset = () => {
@@ -270,10 +265,9 @@ function App() {
     setShowPlatformOverlay(false);
     setShowHomeScreen(false);
     setShowAuthScreen(false);
-    setShowComparisonHomeScreen(false);
-    setShowComparisonAuthScreen(false);
-    comparisonHomeDoneRef.current = 0;
-    comparisonAuthDoneRef.current = 0;
+    setShowTodayHomeScreen(false);
+    setShowTodayAuthScreen(false);
+    setShowFutureAuthScreen(false);
     setAiGlow(false);
     setHeaderCollapsed(false);
     setDemoPlaying(true);
@@ -521,22 +515,23 @@ function App() {
                     futureMode={false}
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
+                    startEventName="START_AUTOPILOT_DEMO_TODAY"
                   />
-                  {(showComparisonHomeScreen || showComparisonAuthScreen) && (
+                  {(showTodayHomeScreen || showTodayAuthScreen) && (
                     <div style={{ position: 'absolute', inset: 0, zIndex: 1050, background: '#000' }} />
                   )}
                   <AnimatePresence>
-                    {showComparisonAuthScreen && (
-                      <BiometricAuthScreen onComplete={handleComparisonAuthComplete} playing={demoPlaying} />
+                    {showTodayAuthScreen && (
+                      <BiometricAuthScreen onComplete={handleTodayAuthComplete} playing={demoPlaying} />
                     )}
                   </AnimatePresence>
                   <AnimatePresence>
-                    {showComparisonHomeScreen && (
+                    {showTodayHomeScreen && (
                       <HomeScreenIntro
                         futureMode={false}
                         playing={demoPlaying}
                         onGlow={() => {}}
-                        onComplete={handleComparisonHomeComplete}
+                        onComplete={handleTodayHomeComplete}
                       />
                     )}
                   </AnimatePresence>
@@ -563,23 +558,14 @@ function App() {
                     futureMode={true}
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
+                    startEventName="START_AUTOPILOT_DEMO_FUTURE"
                   />
-                  {(showComparisonHomeScreen || showComparisonAuthScreen) && (
+                  {showFutureAuthScreen && (
                     <div style={{ position: 'absolute', inset: 0, zIndex: 1050, background: '#000' }} />
                   )}
                   <AnimatePresence>
-                    {showComparisonAuthScreen && (
-                      <BiometricAuthScreen onComplete={handleComparisonAuthComplete} playing={demoPlaying} />
-                    )}
-                  </AnimatePresence>
-                  <AnimatePresence>
-                    {showComparisonHomeScreen && (
-                      <HomeScreenIntro
-                        futureMode={true}
-                        playing={demoPlaying}
-                        onGlow={() => {}}
-                        onComplete={handleComparisonHomeComplete}
-                      />
+                    {showFutureAuthScreen && (
+                      <BiometricAuthScreen onComplete={handleFutureAuthComplete} playing={demoPlaying} />
                     )}
                   </AnimatePresence>
                 </div>

@@ -76,7 +76,7 @@ const MessageBubble = ({ msg }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Panel
 // ─────────────────────────────────────────────────────────────────────────────
-export const ConversationPanel = ({ futureMode }) => {
+export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILOT_DEMO' }) => {
   const { profile, transferMoney, executeTransfer } = useBanking();
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -228,7 +228,7 @@ export const ConversationPanel = ({ futureMode }) => {
       if (action === 'jump') {
         if (!demoCore.current.active) {
             // Start it at specific index if not running
-            window.dispatchEvent(new CustomEvent('START_AUTOPILOT_DEMO', { detail: { startIndex: e.detail.index } }));
+            window.dispatchEvent(new CustomEvent(startEventName, { detail: { startIndex: e.detail.index } }));
         } else {
             demoCore.current.target = Math.max(0, Math.min(5, e.detail.index));
             demoCore.current.skip = true;
@@ -285,11 +285,17 @@ export const ConversationPanel = ({ futureMode }) => {
 
       const typeText = async (text) => {
         setInput('');
-        for (let j = 0; j <= text.length; j++) { 
-           setInput(text.substring(0, j)); 
-           await wait(24); 
+        if (futureModeRef.current) {
+          // Future mode: text appears pre-populated instantly (local AI handed it off)
+          setInput(text);
+          await wait(800);
+        } else {
+          for (let j = 0; j <= text.length; j++) {
+             setInput(text.substring(0, j));
+             await wait(24);
+          }
+          await wait(300);
         }
-        await wait(300);
         setInput('');
         processInputRef.current(text); // Doesn't await processing intentionally
         await wait(2200);
@@ -433,13 +439,13 @@ export const ConversationPanel = ({ futureMode }) => {
       resetChat();
     };
 
-    window.addEventListener('START_AUTOPILOT_DEMO', startAutopilot);
+    window.addEventListener(startEventName, startAutopilot);
     window.addEventListener('RESET_CHAT', handleReset);
     return () => {
-      window.removeEventListener('START_AUTOPILOT_DEMO', startAutopilot);
+      window.removeEventListener(startEventName, startAutopilot);
       window.removeEventListener('RESET_CHAT', handleReset);
     };
-  }, []);
+  }, [startEventName]);
 
   // ── Intent Handlers ──────────────────────────────────────────────────────
   const handleIntent = (intentData, originalText) => {
