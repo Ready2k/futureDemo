@@ -7,43 +7,48 @@ import { PlatformOverlay } from './components/PlatformOverlay';
 import { HomeScreenIntro } from './components/HomeScreenIntro';
 import { BiometricAuthScreen } from './components/BiometricAuthScreen';
 import { useBanking } from './context/BankingContext';
-import { Home, ArrowLeftRight, CreditCard, MessageCircle, Wifi, BatteryMedium, Signal, Zap, RotateCcw, ChevronDown, Sun, Moon, Play, Pause, FastForward, Rewind, List, Columns2, Mic, Type, Volume2, VolumeX } from 'lucide-react';
+import { Home, ArrowLeftRight, CreditCard, MessageCircle, Wifi, BatteryMedium, Signal, Zap, Sparkles, RotateCcw, ChevronDown, Sun, Moon, Play, Pause, FastForward, Rewind, List, Columns2, Mic, Type, Volume2, VolumeX } from 'lucide-react';
 import { ComparisonAdvisor } from './components/ComparisonAdvisor';
 
 // Thin ambient header shown when header is collapsed
-const CollapsedHeader = ({ time, futureMode, totalWealth, onExpand }) => (
-  <motion.div
-    initial={{ opacity: 0, y: -8 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -8 }}
-    onClick={onExpand}
-    style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '47px 20px 0',
-      height: '91px',
-      background: futureMode
-        ? 'linear-gradient(90deg, #0D0025, #00395D)'
-        : 'var(--brand-blue)',
-      cursor: 'pointer',
-      flexShrink: 0,
-    }}
-  >
-    <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'white', letterSpacing: '0.05em' }}>BARCLAYS</span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      {futureMode && (
-        <span style={{ fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.15em', color: '#00AEEF', textTransform: 'uppercase' }}>2028</span>
-      )}
-      <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '100px', padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'white' }}>£{totalWealth?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+const CollapsedHeader = ({ time, demoMode, totalWealth, onExpand }) => {
+  const futureMode = demoMode === '2028';
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      onClick={onExpand}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '47px 20px 0',
+        height: '91px',
+        background: futureMode
+          ? 'linear-gradient(90deg, #0D0025, #00395D)'
+          : 'var(--brand-blue)',
+        cursor: 'pointer',
+        flexShrink: 0,
+      }}
+    >
+      <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'white', letterSpacing: '0.05em' }}>BARCLAYS</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {futureMode && (
+          <span style={{ fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.15em', color: '#00AEEF', textTransform: 'uppercase' }}>2028</span>
+        )}
+        <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '100px', padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'white' }}>£{totalWealth?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+        </div>
+        <ChevronDown size={14} color="rgba(255,255,255,0.5)" />
       </div>
-      <ChevronDown size={14} color="rgba(255,255,255,0.5)" />
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 // Inner app so we can use useBanking for the collapsed header balance
-function AppInner({ futureMode, headerCollapsed, onExpand, startEventName = 'START_AUTOPILOT_DEMO', side = null }) {
-  const { profile, discretionaryIncome } = useBanking();
+function AppInner({ demoMode = 'today', headerCollapsed, onExpand, startEventName = 'START_AUTOPILOT_DEMO', side = null }) {
+  const futureMode = demoMode === '2028';
+  const is2030 = demoMode === '2030';
+  const { profile } = useBanking();
   const isa = profile?.linked_accounts?.natwest_isa;
   const totalWealth = (profile?.accounts.current || 0) + (profile?.accounts.savings || 0) + (futureMode ? (isa?.balance || 0) : 0);
   const [time] = useState(() =>
@@ -54,6 +59,46 @@ function AppInner({ futureMode, headerCollapsed, onExpand, startEventName = 'STA
     ? 'linear-gradient(135deg, #0D0025 0%, #00395D 100%)'
     : 'var(--brand-blue)';
 
+  if (is2030 && side !== 'today') {
+    return (
+      <div className="assistant-2030-canvas">
+        {/* Ambient AI header */}
+        <AnimatePresence initial={false}>
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              padding: '2rem 1.75rem 1.25rem',
+              borderBottom: '1px solid var(--a2030-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              zIndex: 10
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{
+                width: '42px', height: '42px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, #6366F1, #A855F7)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)'
+              }}>
+                <Sparkles size={22} color="white" />
+              </div>
+              <div>
+                <div style={{ fontSize: '1.2rem', fontWeight: '600', color: 'var(--a2030-text)', letterSpacing: '-0.03em', lineHeight: 1.1 }}>Financial Intelligence</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--a2030-subtext)', fontWeight: '500', opacity: 0.6, letterSpacing: '-0.01em' }}>Personal Intelligence Layer</div>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <ConversationPanel demoMode={demoMode} startEventName={startEventName} side={side} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Today / 2028: Bank app chrome ────────────────────────────────────────
   return (
     <>
       {/* iOS Status Bar — always visible */}
@@ -73,7 +118,7 @@ function AppInner({ futureMode, headerCollapsed, onExpand, startEventName = 'STA
             // Collapsed: just a thin ambient strip with total balance
             <CollapsedHeader
               key="collapsed"
-              futureMode={futureMode}
+              demoMode={demoMode}
               totalWealth={totalWealth}
               onExpand={onExpand}
               time={time}
@@ -110,7 +155,7 @@ function AppInner({ futureMode, headerCollapsed, onExpand, startEventName = 'STA
         </AnimatePresence>
 
         {/* Conversation Panel — fills remaining space */}
-        <ConversationPanel futureMode={futureMode} startEventName={startEventName} side={side} />
+        <ConversationPanel demoMode={demoMode} startEventName={startEventName} side={side} />
 
         {/* Bottom Nav */}
         <div className="bottom-nav">
@@ -140,7 +185,10 @@ const NARRATIONS = {
 };
 
 function App() {
-  const [futureMode, setFutureMode] = useState(false);
+  const [demoMode, setDemoMode] = useState('today'); // 'today' | '2028' | '2030'
+  const futureMode = demoMode === '2028'; // backwards-compat for comparison mode + narrator
+  const demoModeRef = useRef(demoMode);
+  useEffect(() => { demoModeRef.current = demoMode; }, [demoMode]);
   const [comparisonMode, setComparisonMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
@@ -241,9 +289,9 @@ function App() {
     return () => window.removeEventListener('resize', setZoom);
   }, [comparisonMode]);
 
-  // Collapse header when user sends first message
+  // Collapse header when user sends first message (not in 2030 — no collapsible header)
   useEffect(() => {
-    const onChatStarted = () => setHeaderCollapsed(true);
+    const onChatStarted = () => { if (demoModeRef.current !== '2030') setHeaderCollapsed(true); };
     const onReset = () => setHeaderCollapsed(false);
     window.addEventListener('CHAT_STARTED', onChatStarted);
     window.addEventListener('RESET_CHAT', onReset);
@@ -302,8 +350,13 @@ function App() {
         }
       } else {
         // Single phone
-        setIntroQuery({ typed: typedQuery, voice: voiceQuery });
-        setShowHomeScreen(true);
+        if (demoModeRef.current === '2030') {
+          // 2030: Siri ambient view handles everything — skip HomeScreen and Auth entirely
+          window.dispatchEvent(new CustomEvent('SCENE_INTRO_COMPLETE'));
+        } else {
+          setIntroQuery({ typed: typedQuery, voice: voiceQuery });
+          setShowHomeScreen(true);
+        }
       }
     };
     const onReset = () => {
@@ -456,24 +509,33 @@ function App() {
             {darkMode ? 'Light' : 'Dark'}
           </button>
 
-          {/* Future mode */}
-          <div
-            onClick={() => setFutureMode(f => !f)}
-            style={{
-              background: futureMode ? 'linear-gradient(135deg, #7c3aed, #00AEEF)' : '#1a1a1a',
-              border: `1px solid ${futureMode ? 'transparent' : '#272727'}`,
-              borderRadius: '100px', padding: '7px 14px', color: 'white',
-              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
-              fontSize: '0.78rem', fontFamily: 'inherit',
-              boxShadow: futureMode ? '0 4px 16px rgba(124,58,237,0.35)' : 'none',
-              transition: 'all 0.25s',
-            }}
-          >
-            <Zap size={13} fill={futureMode ? 'white' : 'none'} />
-            <span>{futureMode ? '2028 Mode' : 'Today'}</span>
-            <div style={{ width: '26px', height: '15px', borderRadius: '100px', background: 'rgba(255,255,255,0.2)', position: 'relative', flexShrink: 0 }}>
-              <div style={{ width: '11px', height: '11px', background: 'white', borderRadius: '50%', position: 'absolute', top: '2px', left: futureMode ? '13px' : '2px', transition: 'left 0.25s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
-            </div>
+          {/* Era mode selector */}
+          <div style={{ display: 'flex', background: '#1a1a1a', border: '1px solid #272727', borderRadius: '100px', padding: '3px', gap: '2px' }}>
+            {[
+              { key: 'today', label: 'Today', icon: null },
+              { key: '2028', label: '2028', icon: <Zap size={11} fill="white" /> },
+              { key: '2030', label: '2030', icon: <Sparkles size={11} /> },
+            ].map(({ key, label, icon }) => {
+              const active = demoMode === key;
+              const gradients = { '2028': 'linear-gradient(135deg, #7c3aed, #00AEEF)', '2030': 'linear-gradient(135deg, #4C1D95, #1E40AF)' };
+              return (
+                <button
+                  key={key}
+                  onClick={() => setDemoMode(key)}
+                  style={{
+                    background: active ? (gradients[key] || '#3d3d3d') : 'transparent',
+                    border: 'none', borderRadius: '100px', padding: '5px 13px',
+                    color: active ? 'white' : '#555', cursor: 'pointer',
+                    fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: active ? '700' : '400',
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    transition: 'all 0.2s',
+                    boxShadow: active && key !== 'today' ? '0 2px 8px rgba(124,58,237,0.3)' : 'none',
+                  }}
+                >
+                  {icon}{label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Input mode: Typed / Voice */}
@@ -660,7 +722,7 @@ function App() {
               <BankingProvider>
                 <div className="mobile-device-wrapper">
                   <AppInner
-                    futureMode={false}
+                    demoMode="today"
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
                     startEventName="START_AUTOPILOT_DEMO_TODAY"
@@ -692,7 +754,7 @@ function App() {
             </div>
 
             {/* Comparison advisor */}
-            <ComparisonAdvisor phase={demoPhase} running={demoRunning} />
+            <ComparisonAdvisor phase={demoPhase} running={demoRunning} leftMode="today" rightMode={demoMode} />
 
             {/* Future / 2028 phone */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -702,12 +764,12 @@ function App() {
                 background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)',
                 borderRadius: '100px', padding: '3px 12px',
               }}>
-                2028
+                {demoMode}
               </div>
               <BankingProvider>
                 <div className="mobile-device-wrapper">
                   <AppInner
-                    futureMode={true}
+                    demoMode={demoMode}
                     headerCollapsed={headerCollapsed}
                     onExpand={() => setHeaderCollapsed(false)}
                     startEventName="START_AUTOPILOT_DEMO_FUTURE"
@@ -739,10 +801,9 @@ function App() {
             </div>
           </>
         ) : (
-          /* ── Single phone layout (default) ── */
           <div className={`mobile-device-wrapper ${aiGlow ? 'ai-glow' : ''}`}>
             <AppInner
-              futureMode={futureMode}
+              demoMode={demoMode}
               headerCollapsed={headerCollapsed}
               onExpand={() => setHeaderCollapsed(false)}
             />
@@ -763,6 +824,7 @@ function App() {
                   onComplete={handleHomeScreenComplete}
                   playing={demoPlaying}
                   futureMode={futureMode}
+                  demoMode={demoMode}
                   query={introQuery.typed}
                   voiceQuery={introQuery.voice}
                   inputMode={inputMode}

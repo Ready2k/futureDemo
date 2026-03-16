@@ -2,13 +2,87 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Layers, TrendingUp, ShieldCheck, Landmark } from 'lucide-react';
 
-const LAYERS = [
-  { label: 'User Interface',          sub: 'Mobile · Voice · Wearable · Web',                          color: '#00AEEF' },
-  { label: 'Agentic AI Orchestration', sub: 'Intent Routing · Tool Selection · Multi-step Reasoning',     color: '#0077aa' },
-  { label: 'Financial Context Graph', sub: 'Account Data · Spending Patterns · Goals · History',         color: '#005580' },
-  { label: 'Policy & Risk Guardrails',sub: 'Compliance Rules · Fraud Scoring · Audit Trail',             color: '#003d66' },
-  { label: 'Bank Capability APIs',    sub: 'Payments · Transfers · Products · Data',                     color: '#00264d' },
-  { label: 'Core Banking Systems',    sub: 'Ledger · Settlement · Record of Truth',                      color: '#001a33' },
+// ── Architecture Evolution: Three Eras ───────────────────────────────────────
+
+const ERA_STACKS = [
+  {
+    era: 'Today',
+    tagline: 'Banking is something you open',
+    emoji: '📱',
+    borderColor: 'rgba(0,174,239,0.45)',
+    labelColor: '#00AEEF',
+    taglineColor: '#5bb8e0',
+    layerColors: ['#0e4a72', '#0d5580', '#0b618f', '#096d9d', '#0779ac', '#0585bb'],
+    layers: [
+      { label: 'Dedicated Bank App Shell',   sub: 'Manual navigation · Forms · Buttons' },
+      { label: 'Hardcoded Business Rules',   sub: 'Workflows · Static Logic' },
+      { label: 'Raw Account Data',           sub: 'Transaction History · Balances' },
+      { label: 'Standard Auth',             sub: 'Session Management · PIN / Password' },
+      { label: 'Internal Bank APIs',         sub: 'Proprietary · Closed' },
+      { label: 'Core Banking Systems',       sub: 'Ledger · Settlement' },
+    ],
+    ownership: 'Bank owns interface + logic',
+  },
+  {
+    era: '2028',
+    tagline: 'Banking is something you ask',
+    emoji: '⚡',
+    borderColor: 'rgba(129,140,248,0.5)',
+    labelColor: '#818cf8',
+    taglineColor: '#a5b4fc',
+    layerColors: ['#1e2d6b', '#2a2a7a', '#362789', '#422498', '#4e21a7', '#5a1eb6'],
+    layers: [
+      { label: 'User Interface (Bank-Owned)', sub: 'Mobile · Voice · Wearable' },
+      { label: 'Agentic AI Orchestration',   sub: 'Intent Routing · Multi-step Reasoning' },
+      { label: 'Financial Context Graph',    sub: 'Account Data + Semantic Understanding' },
+      { label: 'Policy & Risk Guardrails',   sub: 'Compliance Rules · Audit Trails' },
+      { label: 'Bank Capability APIs',       sub: 'Payments · Transfers · Products' },
+      { label: 'Core Banking Systems',       sub: 'Ledger · Settlement · Record of Truth' },
+    ],
+    ownership: 'Bank owns interface + AI',
+  },
+  {
+    era: '2030',
+    tagline: 'Banking happens around you',
+    emoji: '✨',
+    borderColor: 'rgba(196,181,253,0.5)',
+    labelColor: '#C4B5FD',
+    taglineColor: '#ddd6fe',
+    layerColors: ['#2d1069', '#3a0d7c', '#470a8f', '#5407a2', '#6104b5', '#6e01c8'],
+    layers: [
+      { label: 'Personal AI / Device Assistant', sub: 'OS-level · Siri · Android AI' },
+      { label: 'Financial Agent Orchestrator',   sub: "Bank's agent in the AI ecosystem" },
+      { label: 'Preference & Goal Memory',       sub: 'Cross-provider contextual memory' },
+      { label: 'Consent / Policy / Risk Layer',  sub: 'Delegated authority · Cryptographic trust' },
+      { label: 'Payment Networks / Open Banking',sub: 'Commerce APIs · Multi-provider' },
+      { label: 'Core Banking + Human Escalation',sub: 'Trusted financial execution layer' },
+    ],
+    ownership: 'OS owns interface; Bank owns execution',
+  },
+];
+
+const SHIFT_ROWS = [
+  {
+    layer: 'Interface',
+    today: 'Bank App (closed)',
+    y2028: 'Bank App + AI Assistant',
+    y2030: 'OS / Personal AI',
+    shift: 'Moves out of bank control',
+  },
+  {
+    layer: 'Context',
+    today: 'Single-bank data',
+    y2028: 'Bank data + AI reasoning',
+    y2030: 'Cross-provider + life goals',
+    shift: 'Scope expands radically',
+  },
+  {
+    layer: 'Policy',
+    today: 'Fraud checks',
+    y2028: 'AI guardrails',
+    y2030: 'Delegated consent contracts',
+    shift: 'Elevates to trust architecture',
+  },
 ];
 
 const BANK_ADVANTAGES = [
@@ -50,14 +124,6 @@ const FUTURES = [
 ];
 
 export const PlatformOverlay = ({ onClose }) => {
-  const [visibleLayers, setVisibleLayers] = useState(0);
-
-  useEffect(() => {
-    const timers = LAYERS.map((_, i) =>
-      setTimeout(() => setVisibleLayers(v => Math.max(v, i + 1)), i * 280)
-    );
-    return () => timers.forEach(clearTimeout);
-  }, []);
 
   return (
     <motion.div
@@ -105,45 +171,91 @@ export const PlatformOverlay = ({ onClose }) => {
             <span style={{ fontSize: '0.8rem', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#00AEEF' }}>Platform Architecture</span>
           </div>
           <h2 style={{ fontSize: '1.8rem', fontWeight: '700', color: 'var(--overlay-text)', marginBottom: '0.5rem' }}>
-            This isn't a feature.
+            The interface layer is moving.
           </h2>
-          <p style={{ fontSize: '1.1rem', color: 'var(--overlay-sub)' }}>It's a new banking interface layer.</p>
+          <p style={{ fontSize: '1.1rem', color: 'var(--overlay-sub)' }}>The 6-layer stack stays the same. Ownership and scope change everything.</p>
         </div>
 
-        {/* ── Architecture Stack ─────────────────────────────────────────── */}
-        <div style={{ marginBottom: '2.5rem' }}>
-          {LAYERS.map((layer, i) => (
-            <motion.div
-              key={layer.label}
-              initial={{ opacity: 0, x: -20 }}
-              animate={visibleLayers > i ? { opacity: 1, x: 0 } : {}}
-              transition={{ duration: 0.3 }}
-            >
-              <div style={{
-                background: layer.color,
-                borderRadius: i === 0 ? '12px 12px 0 0' : i === LAYERS.length - 1 ? '0 0 12px 12px' : '0',
-                padding: '14px 20px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                borderBottom: i < LAYERS.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none'
-              }}>
+        {/* ── Architecture Evolution: Three Eras ─────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          style={{ marginBottom: '2rem' }}
+        >
+          <p style={{ fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--overlay-muted)', marginBottom: '1.25rem', textAlign: 'center' }}>
+            Architecture Evolution
+          </p>
+
+          {/* Three columns */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.25rem' }}>
+            {ERA_STACKS.map((era, ei) => (
+              <motion.div
+                key={era.era}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + ei * 0.12 }}
+                style={{ border: `1px solid ${era.borderColor}`, borderRadius: '14px', overflow: 'hidden' }}
+              >
+                {/* Era header */}
+                <div style={{ padding: '12px 14px', textAlign: 'center', background: 'rgba(255,255,255,0.03)', borderBottom: `1px solid ${era.borderColor}` }}>
+                  <div style={{ fontSize: '1.1rem', marginBottom: '4px' }}>{era.emoji}</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: '800', letterSpacing: '0.14em', color: era.labelColor, textTransform: 'uppercase', marginBottom: '4px' }}>{era.era}</div>
+                  <div style={{ fontSize: '0.64rem', color: era.taglineColor, fontStyle: 'italic', lineHeight: 1.3 }}>{era.tagline}</div>
+                </div>
+
+                {/* Layer stack */}
                 <div>
-                  <div style={{ fontWeight: '700', color: '#ffffff', fontSize: '0.95rem' }}>{layer.label}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>{layer.sub}</div>
+                  {era.layers.map((layer, li) => (
+                    <div key={li} style={{
+                      background: era.layerColors[li],
+                      padding: '9px 12px',
+                      borderBottom: li < era.layers.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                    }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#fff', lineHeight: 1.3 }}>{layer.label}</div>
+                      <div style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.55)', marginTop: '2px', lineHeight: 1.3 }}>{layer.sub}</div>
+                    </div>
+                  ))}
                 </div>
-                {visibleLayers > i && (
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                    <div style={{ width: '8px', height: '8px', background: '#00AEEF', borderRadius: '50%', boxShadow: '0 0 8px #00AEEF' }} />
-                  </motion.div>
-                )}
+
+                {/* Ownership footer */}
+                <div style={{ padding: '8px 12px', textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: '700', color: era.labelColor, opacity: 0.85 }}>{era.ownership}</div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Structural Shift Summary */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.55 }}
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--overlay-border)', borderRadius: '12px', overflow: 'hidden' }}
+          >
+            <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--overlay-border)', display: 'grid', gridTemplateColumns: '90px 1fr 1fr 1fr', gap: '12px' }}>
+              {['Layer', 'Today', '2028', '2030'].map((h, i) => (
+                <div key={h} style={{ fontSize: '0.6rem', fontWeight: '800', letterSpacing: '0.12em', textTransform: 'uppercase', color: i === 0 ? 'var(--overlay-muted)' : ERA_STACKS[i - 1]?.labelColor || 'var(--overlay-muted)' }}>{h}</div>
+              ))}
+            </div>
+            {SHIFT_ROWS.map((row, ri) => (
+              <div key={ri} style={{ padding: '9px 16px', borderBottom: ri < SHIFT_ROWS.length - 1 ? '1px solid var(--overlay-border)' : 'none', display: 'grid', gridTemplateColumns: '90px 1fr 1fr 1fr', gap: '12px', alignItems: 'center' }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: '700', color: 'var(--overlay-text)' }}>{row.layer}</div>
+                <div style={{ fontSize: '0.63rem', color: '#5bb8e0' }}>{row.today}</div>
+                <div style={{ fontSize: '0.63rem', color: '#a5b4fc' }}>{row.y2028}</div>
+                <div style={{ fontSize: '0.63rem', color: '#ddd6fe' }}>{row.y2030}</div>
               </div>
-              {i < LAYERS.length - 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0' }}>
-                  <div style={{ width: '1px', height: '8px', background: 'rgba(0,174,239,0.4)' }} />
-                </div>
-              )}
-            </motion.div>
-          ))}
-        </div>
+            ))}
+            <div style={{ padding: '8px 16px', background: 'rgba(245,158,11,0.04)', borderTop: '1px solid rgba(245,158,11,0.12)' }}>
+              <div style={{ fontSize: '0.6rem', fontWeight: '700', color: '#f59e0b', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '3px' }}>Structural Shift</div>
+              <div style={{ fontSize: '0.67rem', color: '#c9a84c', lineHeight: 1.5 }}>
+                The 6-layer stack remains identical across all three eras. What changes is <strong style={{ color: '#f59e0b' }}>ownership</strong> and <strong style={{ color: '#f59e0b' }}>scope</strong> — the interface migrates out of the bank, context expands cross-provider, and policy evolves into delegated trust contracts.
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        <div style={{ height: '1px', background: 'var(--overlay-border)', margin: '0 0 2rem 0' }} />
 
         {/* ── Divider ───────────────────────────────────────────────────── */}
         <div style={{ height: '1px', background: 'var(--overlay-border)', margin: '0 0 2rem 0' }} />

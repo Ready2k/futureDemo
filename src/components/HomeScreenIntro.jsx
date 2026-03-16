@@ -30,11 +30,13 @@ export const HomeScreenIntro = ({
   onComplete,
   playing,
   futureMode,
+  demoMode = 'today',
   query     = "How much money can I spend this month?",
   voiceQuery = "Hey Siri, how much can I spend this month?",
   inputMode = 'typed',
 }) => {
   const activeQuery = inputMode === 'voice' ? voiceQuery : query;
+  const is2030 = demoMode === '2030';
 
   // Timing — computed from active query so each scene has correct durations
   const typingUnits = inputMode === 'voice' ? activeQuery.split(' ').length : activeQuery.length;
@@ -66,6 +68,7 @@ export const HomeScreenIntro = ({
   );
 
   const futureModeRef = useRef(futureMode);
+  const demoModeRef   = useRef(demoMode);
   const elapsedRef    = useRef(0);
   const lastResumeRef = useRef(Date.now());
   const timersRef     = useRef([]);
@@ -74,6 +77,7 @@ export const HomeScreenIntro = ({
   const phaseRef      = useRef(0);
 
   useEffect(() => { futureModeRef.current = futureMode; }, [futureMode]);
+  useEffect(() => { demoModeRef.current = demoMode; }, [demoMode]);
 
   const stopTyping = () => {
     if (typingRef.current.interval) { clearInterval(typingRef.current.interval); typingRef.current.interval = null; }
@@ -117,9 +121,10 @@ export const HomeScreenIntro = ({
   const schedule = (elapsed) => {
     clearTimers();
     const fm = futureModeRef.current;
+    const useShortPath = fm || demoModeRef.current === '2030';
     const bump = (p, fn) => () => { phaseRef.current = p; setPhase(p); fn && fn(); };
 
-    const STEPS = fm ? [
+    const STEPS = useShortPath ? [
       { t: T_GLOW,          fn: bump(1, () => { if (onGlow) onGlow(); }) },
       { t: T_BAR,           fn: bump(2) },
       { t: T_TYPE,          fn: bump(3, startTyping) },
@@ -162,11 +167,12 @@ export const HomeScreenIntro = ({
 
   const isTypingDone  = typedText === activeQuery;
   const isSpotDone    = spotlightText.length === SPOTLIGHT_QUERY.length;
-  const glowVisible   = futureMode ? phase >= 1 : (phase >= 1 && phase < 5);
-  const siriBarVisible = futureMode ? phase >= 2 : (phase >= 2 && phase < 5);
-  const siriCantHelp  = !futureMode && phase === 4;
-  const spotlightOpen = !futureMode && phase >= 6;
-  const spotlightTapped = !futureMode && phase >= 8;
+  const isShortPath   = futureMode || is2030;
+  const glowVisible   = isShortPath ? phase >= 1 : (phase >= 1 && phase < 5);
+  const siriBarVisible = isShortPath ? phase >= 2 : (phase >= 2 && phase < 5);
+  const siriCantHelp  = !futureMode && !is2030 && phase === 4;
+  const spotlightOpen = !futureMode && !is2030 && phase >= 6;
+  const spotlightTapped = !futureMode && !is2030 && phase >= 8;
 
   // Voice mode: style "Hey Siri, " prefix differently
   const renderQueryText = () => {
@@ -367,7 +373,7 @@ export const HomeScreenIntro = ({
               </>
             ) : (
               <span style={{ color: 'rgba(255,255,255,0.32)', fontStyle: 'normal', fontSize: '0.88rem' }}>
-                {inputMode === 'voice' ? 'Listening…' : 'Ask me anything…'}
+                {is2030 ? 'Ask your financial AI…' : inputMode === 'voice' ? 'Listening…' : 'Ask me anything…'}
               </span>
             )}
           </div>

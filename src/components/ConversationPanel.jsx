@@ -4,6 +4,8 @@ import { Send, CheckCircle, AlertTriangle, ChevronRight, Sparkles, X } from 'luc
 import { useBanking } from '../context/BankingContext';
 import { detectIntent } from '../services/intentEngine';
 import { ReasoningDrawer } from './ReasoningDrawer';
+import { ProviderExecutionChip } from '../components2030/ProviderExecutionChip';
+import { TrustTimeline } from '../components2030/TrustTimeline';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Proactive Notification
@@ -76,35 +78,42 @@ const MessageBubble = ({ msg }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Panel
 // ─────────────────────────────────────────────────────────────────────────────
-export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILOT_DEMO', side = null }) => {
+export const ConversationPanel = ({ demoMode = 'today', startEventName = 'START_AUTOPILOT_DEMO', side = null }) => {
+  const futureMode = demoMode === '2028';
+  const is2030 = demoMode === '2030';
   const { profile, transferMoney, executeTransfer } = useBanking();
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showProactive, setShowProactive] = useState(false);
   const [currentTrace, setCurrentTrace] = useState(null);
 
-  const futureModeRef = useRef(futureMode);
+  const demoModeRef = useRef(demoMode);
   const sideRef = useRef(side);
   useEffect(() => { sideRef.current = side; }, [side]);
+  useEffect(() => { demoModeRef.current = demoMode; }, [demoMode]);
   const awaitingAccountSelectRef = useRef(null); // {complete: fn} — set when disambiguation card awaits a response
-  const [showFutureBanner, setShowFutureBanner] = useState(false);
+  const [showModeBanner, setShowModeBanner] = useState(false);
   useEffect(() => {
-    futureModeRef.current = futureMode;
-    if (futureMode) {
-      setShowFutureBanner(true);
-      const t = setTimeout(() => setShowFutureBanner(false), 4000);
+    if (demoMode !== 'today') {
+      setShowModeBanner(true);
+      const t = setTimeout(() => setShowModeBanner(false), 4000);
       return () => clearTimeout(t);
     } else {
-      setShowFutureBanner(false);
+      setShowModeBanner(false);
     }
-  }, [futureMode]);
+  }, [demoMode]);
+  // Keep legacy showFutureBanner reference for compatibility with the banner JSX below
+  const showFutureBanner = showModeBanner;
 
-  const makeInitialMsg = () => ({
-    id: 1, role: 'assistant',
-    text: futureModeRef.current
-      ? "Good morning Joe. You have £8,240 across your Barclays and NatWest accounts, with £160 discretionary this month after bills and savings. I'm already tracking a restaurant spend spike — you're 47% above your 3-month average. Where would you like to start?"
-      : "Hello! I can help you check your balances, make transfers, or analyze if you can afford that new purchase. What's on your mind?"
-  });
+  const makeInitialMsg = () => {
+    const mode = demoModeRef.current;
+    const text = mode === '2030'
+      ? "Good morning, Joe. I've been managing things while you were away — I paused a suspicious charge from Northline Services, your £340 direct debit clears Friday so your buffer stays healthy, and you're 8 weeks ahead on your ISA goal. Three automations are running. What would you like to focus on?"
+      : mode === '2028'
+        ? "Good morning Joe. You have £8,240 across your Barclays and NatWest accounts, with £160 discretionary this month after bills and savings. I'm already tracking a restaurant spend spike — you're 47% above your 3-month average. Where would you like to start?"
+        : "Hello! I can help you check your balances, make transfers, or analyze if you can afford that new purchase. What's on your mind?";
+    return { id: 1, role: 'assistant', text };
+  };
 
   const INITIAL_MESSAGE = makeInitialMsg();
 
@@ -301,8 +310,8 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
 
       const typeText = async (text) => {
         setInput('');
-        if (futureModeRef.current) {
-          // Future mode: text appears pre-populated instantly (local AI handed it off)
+        if (demoModeRef.current !== 'today') {
+          // 2028 / 2030: text appears pre-populated instantly (AI handed it off)
           setInput(text);
           await wait(800);
         } else {
@@ -344,8 +353,68 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
             await wait(1800);
 
             if (scene.proactive) {
-              const is2028 = futureModeRef.current;
-              const insightCard = (
+              const currentMode = demoModeRef.current;
+              const is2028 = currentMode === '2028';
+              const is2030snap = currentMode === '2030';
+              const barData = [{ m: 'Jan', v: 265 }, { m: 'Feb', v: 298 }, { m: 'Mar', v: 420 }];
+              const insightCard = is2030snap ? (
+                <div>
+                  {/* Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <div style={{ width: '8px', height: '8px', background: '#f59e0b', borderRadius: '50%', boxShadow: '0 0 6px rgba(245,158,11,0.6)' }} />
+                    <span style={{ fontWeight: '700', fontSize: '0.85rem', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em' }}>AI spotted 2 things</span>
+                    <span style={{ marginLeft: 'auto', fontSize: '0.65rem', fontWeight: '700', background: 'linear-gradient(90deg, #4C1D95, #1E40AF)', color: 'white', padding: '2px 8px', borderRadius: '100px' }}>2030 · Ambient</span>
+                  </div>
+
+                  {/* Monitoring status */}
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '0.75rem', padding: '6px 10px', background: 'rgba(16,185,129,0.06)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)' }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', animation: 'pulse 1.5s infinite', flexShrink: 0 }} />
+                    <span style={{ fontSize: '0.72rem', color: '#065F46' }}>Continuous monitoring active · Anomaly threshold crossed · Action pre-drafted</span>
+                  </div>
+
+                  {/* Thing 1: Spending insight */}
+                  <div style={{ border: '1px solid rgba(245,158,11,0.2)', borderRadius: '12px', padding: '1rem', marginBottom: '0.75rem', background: 'rgba(245,158,11,0.04)' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>① Dining spend</div>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', marginBottom: '0.75rem', height: '44px' }}>
+                      {barData.map(({ m, v }) => (
+                        <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                          <div style={{ width: '100%', background: v === 420 ? '#f59e0b' : 'rgba(245,158,11,0.25)', borderRadius: '4px 4px 0 0', height: `${(v / 420) * 38}px` }} />
+                          <span style={{ fontSize: '0.6rem', color: '#aaa' }}>{m}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p style={{ fontSize: '0.85rem', fontWeight: '600', color: '#78350f', margin: '0 0 3px' }}>+58% over 3 months — £420 in March alone</p>
+                    <p style={{ fontSize: '0.78rem', color: '#92400e', lineHeight: 1.5, margin: 0 }}>Budget adjustment pre-drafted. I'll block overspend automatically at 80% of your limit.</p>
+                    <button style={{ marginTop: '0.65rem', width: '100%', padding: '9px', background: 'linear-gradient(135deg, #4C1D95, #1E40AF)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>Apply Adjustment</button>
+                  </div>
+
+                  {/* Thing 2: AI negotiation — the financial advocate moment */}
+                  <div style={{ border: '1px solid rgba(16,185,129,0.25)', borderRadius: '12px', padding: '1rem', marginBottom: '0.75rem', background: 'rgba(16,185,129,0.04)' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#065F46', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>② Better deal found</div>
+                    <p style={{ fontSize: '0.85rem', fontWeight: '600', color: '#1a3a2a', margin: '0 0 4px' }}>Your broadband just renewed at £52/month</p>
+                    <p style={{ fontSize: '0.78rem', color: '#374151', lineHeight: 1.5, margin: '0 0 0.65rem' }}>I found an equivalent plan at <strong>£34/month</strong> — saving you <strong>£216/year</strong> with the same speed and no contract lock-in.</p>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button style={{ flex: 2, padding: '9px', background: 'linear-gradient(135deg, #059669, #047857)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>Switch provider</button>
+                      <button style={{ flex: 1, padding: '9px', background: 'transparent', color: '#6B7280', border: '1px solid #E5E7EB', borderRadius: '8px', fontWeight: '500', fontSize: '0.85rem', cursor: 'pointer' }}>Not now</button>
+                    </div>
+                  </div>
+
+                  {/* Execution chain — always visible */}
+                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.03)', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.07)' }}>
+                    <div style={{ fontSize: '0.62rem', fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '7px' }}>Execution chain</div>
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {[
+                        { label: 'AI decision', color: '#6366F1' },
+                        { label: 'Your approval', color: '#8B5CF6' },
+                        { label: 'Barclays', color: '#00395D' },
+                        { label: 'Fraud active', color: '#10B981' },
+                      ].map((c, i) => (
+                        <span key={i} style={{ fontSize: '0.67rem', fontWeight: '600', color: c.color, background: `${c.color}12`, border: `1px solid ${c.color}25`, borderRadius: '100px', padding: '2px 8px' }}>✓ {c.label}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
                     <div style={{ width: '8px', height: '8px', background: '#f59e0b', borderRadius: '50%', boxShadow: '0 0 6px rgba(245,158,11,0.6)' }} />
@@ -359,7 +428,7 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', marginBottom: '1rem', height: '48px' }}>
-                    {[{ m: 'Jan', v: 265 }, { m: 'Feb', v: 298 }, { m: 'Mar', v: 420 }].map(({ m, v }) => (
+                    {barData.map(({ m, v }) => (
                       <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                         <div style={{ width: '100%', background: v === 420 ? '#f59e0b' : 'rgba(245,158,11,0.25)', borderRadius: '4px 4px 0 0', height: `${(v / 420) * 42}px`, transition: 'height 0.4s' }} />
                         <span style={{ fontSize: '0.65rem', color: '#aaa' }}>{m}</span>
@@ -393,7 +462,12 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
               setIsTyping(true);
               await wait(1800);
               setIsTyping(false);
-              setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', text: is2028 ? "I've been monitoring your spending patterns continuously. Your restaurant category crossed my anomaly threshold this week — you're 47% above your 3-month baseline and trending higher. I've already drafted a budget adjustment for your review." : "I've noticed your restaurant spending has been trending upward over the past three months. This is the kind of pattern that's easy to miss month-to-month but adds up quickly.", card: insightCard }]);
+              const proactiveText = is2030snap
+                ? "I spotted two things while you were away. Your dining spend is 58% above baseline — I've pre-drafted an adjustment. I also found a broadband deal saving you £216 a year. I haven't acted on either yet — your call."
+                : is2028
+                  ? "I've been monitoring your spending patterns continuously. Your restaurant category crossed my anomaly threshold this week — you're 47% above your 3-month baseline and trending higher. I've already drafted a budget adjustment for your review."
+                  : "I've noticed your restaurant spending has been trending upward over the past three months. This is the kind of pattern that's easy to miss month-to-month but adds up quickly.";
+              setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', text: proactiveText, card: insightCard }]);
             } else if (scene.multiStep) {
               await typeText(scene.queries[0]);
               await wait(5000);
@@ -404,8 +478,8 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
               setIsTyping(false);
               processInputRef.current('Chat with fraud specialist.');
             } else if (scene.accountSelect) {
-              if (futureModeRef.current) {
-                // Future mode: AI selects source automatically — single query
+              if (demoModeRef.current !== 'today') {
+                // 2028 / 2030: AI selects source automatically — single query
                 await typeText(scene.queries[0]);
               } else {
                 // Today mode: ambiguous — disambiguation card appears, then user picks Barclays
@@ -466,8 +540,69 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
 
       case 'check_balance': {
         const expensesTotal = Object.values(profile.expenses).reduce((a, b) => a + b, 0);
-        const isa = futureMode ? profile.linked_accounts?.natwest_isa : null;
+        const isa = (futureMode || is2030) ? profile.linked_accounts?.natwest_isa : null;
         const totalWealth = profile.accounts.current + profile.accounts.savings + (isa?.balance || 0);
+
+        // ── 2030 Mode ─────────────────────────────────────────────────────────
+        if (is2030) {
+          const trace = {
+            confidence: 99,
+            reasoning: [
+              `Cross-provider balance aggregation: Barclays + NatWest`,
+              `Barclays Current: £${profile.accounts.current.toLocaleString()} · Savings: £${profile.accounts.savings.toLocaleString()}`,
+              `NatWest Cash ISA: £${isa?.balance?.toLocaleString()}`,
+              `Monthly buffer: £${profile.income} income − £${expensesTotal} expenses − £${profile.savings_goal} savings goal = £${freshDiscretionary}`,
+              `Predictive: 3 upcoming direct debits (£340 total) factored in`,
+              `3 active automations monitored`,
+            ],
+            outcome: { ok: true, verdict: 'Cross-provider view', impact: `£${totalWealth.toLocaleString()} total · £${freshDiscretionary} discretionary` }
+          };
+          setCurrentTrace(trace);
+          const card = (
+            <div style={{ padding: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.5rem' }}>
+                <span style={{ fontWeight: '600', fontSize: '1.1rem', color: '#1E293B', letterSpacing: '-0.02em' }}>Live Portfolio</span>
+                <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#10B981', background: 'rgba(16,185,129,0.08)', borderRadius: '100px', padding: '3px 10px', marginLeft: 'auto', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Live</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {[
+                  { label: 'Barclays Current', value: `£${profile.accounts.current.toLocaleString()}`, sub: 'Day-to-day spending' },
+                  { label: 'Everyday Saver', value: `£${profile.accounts.savings.toLocaleString()}`, sub: `Barclays · ${profile.savings_account?.rate || 4.75}% AER` },
+                  { label: 'NatWest Cash ISA', value: `£${isa?.balance?.toLocaleString()}`, sub: `NatWest · ${isa?.rate || 3.2}% AER` },
+                ].map(({ label, value, sub }) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ color: '#1E293B', fontWeight: '600', fontSize: '0.95rem' }}>{label}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '1px', fontWeight: '400' }}>{sub}</div>
+                    </div>
+                    <span style={{ fontWeight: '700', color: '#1E293B', fontSize: '1.05rem', letterSpacing: '-0.01em' }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ height: '1px', background: 'rgba(0,0,0,0.05)', margin: '1.5rem 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.25rem' }}>
+                <span style={{ fontWeight: '500', fontSize: '0.95rem', color: '#64748B' }}>Total Aggregated Wealth</span>
+                <span style={{ fontWeight: '700', fontSize: '1.25rem', color: '#1E293B', letterSpacing: '-0.02em' }}>£{totalWealth.toLocaleString()}</span>
+              </div>
+              <div style={{ background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.1)', borderRadius: '16px', padding: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', marginBottom: '8px' }}>
+                  <span style={{ color: '#065F46', fontWeight: '500' }}>Current Discretionary</span>
+                  <span style={{ fontWeight: '700', color: '#10B981' }}>£{freshDiscretionary.toLocaleString()}</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#065F46', opacity: 0.6, lineHeight: 1.4 }}>Factoring committed spend, savings targets, and 3 upcoming direct debits.</div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '1.25rem' }}>
+                <ProviderExecutionChip provider="barclays" />
+                <ProviderExecutionChip provider="natwest" />
+              </div>
+            </div>
+          );
+          addMessage('assistant',
+            `Across Barclays and NatWest you're holding £${totalWealth.toLocaleString()} in total. Your monthly discretionary sits at £${freshDiscretionary.toLocaleString()} — I've factored in your committed spend and 3 upcoming direct debits. Here's the live picture:`,
+            card
+          );
+          break;
+        }
 
         const trace = {
           confidence: 97,
@@ -538,6 +673,71 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
         const barclaysRate = profile.savings_account?.rate || 4.75;
         const natwestRate = profile.linked_accounts?.natwest_isa?.rate || 3.2;
         const natwestISA = profile.linked_accounts?.natwest_isa;
+
+        // ── 2030 Mode: Delegated execution within pre-authorised limits ────────
+        if (is2030) {
+          executeTransfer(source_account, destination_account, amount);
+          const interestSaved = Math.round(amount * (barclaysRate - natwestRate) / 100);
+          const trace = {
+            confidence: 100,
+            reasoning: [
+              `Transfer request: £${amount} to ${destination_account}`,
+              `Delegated execution: within pre-authorised limits (< £1,000 routine transfers)`,
+              `Source optimisation: NatWest ISA (${natwestRate}% AER) preserves Barclays (${barclaysRate}% AER)`,
+              `Consent layer: standing delegated authority active`,
+              `Barclays Payment API: executed in 340ms`,
+              `Visa network: transaction credentialed`,
+              `Fraud monitoring: no anomaly detected`,
+            ],
+            outcome: { ok: true, verdict: 'Delegated Execution', impact: `£${amount} transferred. NatWest ISA used — Barclays savings preserved.` }
+          };
+          setCurrentTrace(trace);
+          const card = (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                <CheckCircle size={20} color="#10B981" />
+                <span style={{ fontWeight: '700', fontSize: '1rem', color: '#10B981' }}>Transfer Complete</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.65rem', fontWeight: '700', background: 'linear-gradient(135deg, #4C1D95, #1E40AF)', color: 'white', padding: '2px 8px', borderRadius: '100px' }}>Delegated</span>
+              </div>
+              <div style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1rem' }}>
+                {[
+                  { label: 'From', value: 'NatWest Cash ISA', detail: `${natwestRate}% AER — lower yield, used as source` },
+                  { label: 'To', value: `Barclays ${destination_account}`, detail: null },
+                  { label: 'Amount', value: `£${amount}`, detail: null },
+                ].map(({ label, value, detail }) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
+                    <div>
+                      <div style={{ color: '#475569' }}>{label}</div>
+                      {detail && <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '2px' }}>{detail}</div>}
+                    </div>
+                    <span style={{ fontWeight: '700', color: '#1E293B', fontSize: label === 'Amount' ? '1.3rem' : '0.95rem' }}>{value}</span>
+                  </div>
+                ))}
+                <div style={{ fontSize: '0.72rem', color: '#10B981', fontStyle: 'italic', marginTop: '4px' }}>
+                  ~£{interestSaved}/yr extra interest retained by preserving Barclays savings
+                </div>
+              </div>
+              <TrustTimeline steps={[
+                { label: 'Personal AI orchestrator', detail: 'Transfer intent resolved, source optimised' },
+                { label: 'Consent & delegated authority', detail: 'Standing authority active — within pre-authorised limits' },
+                { label: 'Barclays Payment API', detail: 'Executed in 340ms' },
+                { label: 'Visa network credential', detail: 'Transaction credentialed, settlement T+0' },
+                { label: 'Fraud monitoring', detail: 'No anomaly — velocity check passed' },
+              ]} />
+              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+                <ProviderExecutionChip provider="ai" />
+                <ProviderExecutionChip provider="barclays" />
+                <ProviderExecutionChip provider="visa" />
+                <ProviderExecutionChip provider="fraud" />
+              </div>
+            </div>
+          );
+          addMessage('assistant',
+            `Done. I've moved £${amount} from your NatWest Cash ISA (${natwestRate}% AER) — your Barclays Everyday Saver stays intact at ${barclaysRate}% AER. This was within your delegated limits; no confirmation needed.`,
+            card
+          );
+          break;
+        }
 
         // ── 2028 Mode: AI selects optimal source account automatically ─────────
         if (futureMode) {
@@ -753,6 +953,59 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
         }));
         const sortedCats = [...categories].sort((a, b) => b.amount - a.amount);
 
+        if (is2030) {
+          const trace = {
+            confidence: 97,
+            reasoning: [
+              `Cross-provider spending analysis: Barclays + NatWest`,
+              `Total committed: £${expensesTotal.toLocaleString()} (${Math.round(expensesTotal / profile.income * 100)}% of income)`,
+              `Largest category: ${sortedCats[0].name} at £${sortedCats[0].amount}`,
+              `Anomaly detected: Restaurants 58% above 3-month baseline`,
+              `Continuous monitoring: live transaction feed, updated in real-time`,
+            ],
+            outcome: { ok: true, verdict: 'Live cross-provider analysis', impact: `£${expensesTotal.toLocaleString()} committed · £${freshDiscretionary.toLocaleString()} discretionary` }
+          };
+          setCurrentTrace(trace);
+          const card = (
+            <div style={{ padding: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.5rem' }}>
+                <span style={{ fontWeight: '600', fontSize: '1.1rem', color: '#1E293B', letterSpacing: '-0.02em' }}>Spending Analysis</span>
+                <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#10B981', background: 'rgba(16,185,129,0.08)', borderRadius: '100px', padding: '3px 10px', marginLeft: 'auto', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Live</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {sortedCats.map(cat => (
+                  <div key={cat.name}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.95rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: '#64748B', fontWeight: '500' }}>{cat.name}</span>
+                        {cat.name === 'Food' && <span style={{ fontSize: '0.65rem', color: '#F59E0B', fontWeight: '700', background: 'rgba(245,158,11,0.08)', borderRadius: '100px', padding: '2px 8px' }}>+58% ↑</span>}
+                      </div>
+                      <span style={{ fontWeight: '600', color: '#1E293B' }}>£{cat.amount} <span style={{ color: '#94A3B8', fontWeight: '400', fontSize: '0.8rem' }}>• {cat.pct}%</span></span>
+                    </div>
+                    <div style={{ height: '6px', background: 'rgba(30,41,59,0.04)', borderRadius: '100px' }}>
+                      <div style={{ height: '100%', width: `${Math.min(cat.pct * 2, 100)}%`, background: cat.name === 'Food' ? 'linear-gradient(90deg, #F59E0B, #D97706)' : 'linear-gradient(90deg, #6366F1, #A855F7)', borderRadius: '100px', transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1)' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ height: '1px', background: 'rgba(0,0,0,0.05)', margin: '1.5rem 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.25rem', alignItems: 'baseline' }}>
+                <span style={{ fontWeight: '500', fontSize: '0.95rem', color: '#64748B' }}>Total Committed Monthly</span>
+                <span style={{ fontWeight: '700', fontSize: '1.2rem', color: '#1E293B', letterSpacing: '-0.02em' }}>£{expensesTotal.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <ProviderExecutionChip provider="barclays" />
+                <ProviderExecutionChip provider="natwest" />
+              </div>
+            </div>
+          );
+          addMessage('assistant',
+            `Your spending is tracked continuously across both accounts. Restaurants are flagged — 58% above your 3-month average and climbing. Everything else looks stable. Your biggest commitment remains ${sortedCats[0].name.toLowerCase()} at £${sortedCats[0].amount}/month. Here's the live picture:`,
+            card
+          );
+          break;
+        }
+
         const trace = {
           confidence: 94,
           reasoning: [
@@ -807,6 +1060,59 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
         const affordable = cost <= freshDiscretionary;
         const deficit = affordable ? 0 : cost - freshDiscretionary;
         const monthsDelayed = Math.ceil(deficit / profile.savings_goal);
+
+        if (is2030) {
+          const trace = {
+            confidence: 92,
+            reasoning: [
+              `User asked about £${cost} holiday affordability`,
+              `Cross-provider balance: Barclays + NatWest = £${(profile.accounts.current + profile.accounts.savings + (profile.linked_accounts?.natwest_isa?.balance || 0)).toLocaleString()}`,
+              `Monthly discretionary: £${freshDiscretionary.toLocaleString()}`,
+              `Goal impact: savings goal unaffected — recommend funding from travel budget`,
+              `Seasonality model: summer spend +18% factored in`,
+              `AI recommendation: approve, fund from travel budget (£340 available)`,
+            ],
+            outcome: { ok: true, verdict: 'Approved — goal-aware recommendation', impact: 'Fund from travel budget. Emergency buffer preserved.' }
+          };
+          setCurrentTrace(trace);
+          const card = (
+            <div style={{ padding: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
+                <CheckCircle size={20} color="#10B981" weight="bold" />
+                <span style={{ fontWeight: '600', fontSize: '1.1rem', color: '#10B981', letterSpacing: '-0.02em' }}>Book with confidence</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.65rem', fontWeight: '700', color: '#6366F1', background: 'rgba(99,102,241,0.08)', borderRadius: '100px', padding: '3px 10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>92% Score</span>
+              </div>
+              <div style={{ background: 'rgba(16,185,129,0.03)', border: '1px solid rgba(16,185,129,0.1)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#065F46', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', opacity: 0.6 }}>Analysis Factors</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[
+                    { label: 'Travel budget', value: '£340 allocated ✓', color: '#10B981' },
+                    { label: 'Emergency buffer', value: 'Preserved ✓', color: '#10B981' },
+                    { label: 'Savings goal', value: 'Stay on track ✓', color: '#10B981' },
+                    { label: 'Summer seasonality', value: '18% spike modelled', color: '#F59E0B' },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', alignItems: 'center' }}>
+                      <span style={{ color: '#64748B', fontWeight: '500' }}>{label}</span>
+                      <span style={{ fontWeight: '600', color }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <TrustTimeline steps={[
+                { label: 'Personal AI analysis', detail: `Continuous re-computation across 14 signals` },
+                { label: 'Future commitment check', detail: 'Direct debits & scheduled spend factored' },
+              ]} />
+              <button style={{ width: '100%', marginTop: '1.25rem', padding: '14px', background: 'linear-gradient(135deg, #6366F1, #A855F7)', color: 'white', border: 'none', borderRadius: '16px', fontWeight: '600', fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)', transition: 'transform 0.2s' }}>
+                Execute Transfer & Booking
+              </button>
+            </div>
+          );
+          addMessage('assistant',
+            `Yes — book it. I'm 92% confident this is the right call. Fund it from your travel budget (£340 available) and your emergency buffer and savings goal stay completely intact. Summer seasonality is factored in. Here's the full plan:`,
+            card
+          );
+          break;
+        }
 
         const trace = {
           confidence: 98,
@@ -925,6 +1231,49 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
         break;
 
       case 'support_transaction_query': {
+        if (is2030) {
+          const trace = {
+            confidence: 99,
+            reasoning: [
+              `Continuous monitoring flagged Northline Services as anomalous 3 days ago`,
+              `Transaction: £85.00 · Northline Services · Yesterday 14:22`,
+              `Risk profile: unrecognised recurring charge, merchant not in approved list`,
+              `AI pre-action: future payments paused pending user confirmation`,
+              `Dispute draft prepared and ready for single-tap submission`,
+            ],
+            outcome: { ok: true, verdict: 'Anomaly pre-flagged', impact: 'Future payments paused. Dispute ready to submit.' }
+          };
+          setCurrentTrace(trace);
+          const card = (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ width: '40px', height: '40px', background: 'rgba(239,68,68,0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#DC2626' }}>NS</div>
+                <div>
+                  <div style={{ fontWeight: '600', color: '#1E293B' }}>Northline Services</div>
+                  <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>Online Subscription · Yesterday, 14:22</div>
+                </div>
+                <div style={{ marginLeft: 'auto', fontWeight: '700', fontSize: '1.1rem', color: '#DC2626' }}>−£85.00</div>
+              </div>
+              <div style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', padding: '10px 12px', marginBottom: '1rem', fontSize: '0.82rem', color: '#7F1D1D' }}>
+                I flagged this 3 days ago — it's not in your approved merchant list. I've already paused future payments from this merchant pending your decision.
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <button onClick={() => processInput("I don't recognise this")} style={{ flex: 1, padding: '10px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>Submit Dispute</button>
+                <button style={{ flex: 1, padding: '10px', background: 'rgba(0,0,0,0.04)', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '10px', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>I Recognise This</button>
+              </div>
+              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                <ProviderExecutionChip provider="fraud" />
+                <ProviderExecutionChip provider="barclays" />
+              </div>
+            </div>
+          );
+          addMessage('assistant',
+            `I flagged Northline Services 3 days ago — it's not a merchant you've approved. I've already paused future payments. Would you like me to submit the dispute now?`,
+            card
+          );
+          break;
+        }
+
         const trace = {
           confidence: 96,
           reasoning: [
@@ -972,6 +1321,60 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
       }
 
       case 'support_dispute': {
+        if (is2030) {
+          const trace = {
+            confidence: 100,
+            reasoning: [
+              `Dispute submitted for Northline Services £85.00`,
+              `Merchant already blocked (paused 3 days ago, now confirmed)`,
+              `AI-to-AI negotiation initiated: contacting Northline merchant API with evidence`,
+              `Provisional refund: agreed in principle (< 90 seconds)`,
+              `Dispute reference: #FR-2839`,
+              `Fraud monitoring: enhanced monitoring active on account`,
+            ],
+            outcome: { ok: true, verdict: 'Dispute filed · Refund in progress', impact: 'AI negotiation secured provisional refund. Confirm with Sarah to finalise.' }
+          };
+          setCurrentTrace(trace);
+          const card = (
+            <div style={{ padding: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem', color: '#10B981' }}>
+                <CheckCircle size={20} weight="bold" />
+                <span style={{ fontWeight: '600', fontSize: '1.1rem', letterSpacing: '-0.02em' }}>Dispute secured</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.62rem', fontWeight: '700', background: 'linear-gradient(135deg, #6366F1, #A855F7)', color: 'white', padding: '3px 10px', borderRadius: '100px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>AI Resolved</span>
+              </div>
+              <div style={{ background: '#F8FAFC', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.25rem', border: '1px solid rgba(0,0,0,0.03)' }}>
+                {[
+                  { label: 'Merchant', value: 'Northline Services' },
+                  { label: 'Amount', value: '£85.00', color: '#DC2626' },
+                  { label: 'Case ref', value: '#FR-2839' },
+                  { label: 'AI Status', value: 'Provisional refund agreed', color: '#10B981' },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.9rem', alignItems: 'center' }}>
+                    <span style={{ color: '#64748B', fontWeight: '500' }}>{label}</span>
+                    <span style={{ fontWeight: '600', color: color || '#1E293B' }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ background: 'rgba(99,102,241,0.03)', border: '1px solid rgba(99,102,241,0.1)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6366F1', marginBottom: '12px', opacity: 0.8 }}>System Protection Active</div>
+                {['Merchant blocked permanent', 'AI negotiation confirmed refund', 'Monitoring enhanced'].map(a => (
+                  <div key={a} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.88rem', color: '#1E293B', marginBottom: '8px' }}>
+                    <div style={{ width: '6px', height: '6px', background: '#10B981', borderRadius: '50%' }} /> {a}
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => processInput('Chat with fraud specialist.')} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #6366F1, #A855F7)', color: 'white', border: 'none', borderRadius: '16px', fontWeight: '600', fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)' }}>
+                Finalise with Sarah <ChevronRight size={18} />
+              </button>
+            </div>
+          );
+          addMessage('assistant',
+            `Done. Merchant blocked, dispute filed, and I've already opened AI-to-AI negotiation with Northline's system — a provisional refund has been agreed in principle. Connect with Sarah to finalise it.`,
+            card
+          );
+          break;
+        }
+
         const trace = {
           confidence: 99,
           reasoning: futureMode ? [
@@ -1096,6 +1499,61 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
       }
 
       case 'escalate_to_human': {
+        if (is2030) {
+          const trace = {
+            confidence: 100,
+            reasoning: [
+              `Connecting to Sarah (Fraud Specialist)`,
+              `Full context package: dispute #FR-2839 + AI negotiation status + provisional refund`,
+              `Transaction history (24mo), account context, device ID — all pre-loaded`,
+              `Fraud risk score: 12 (Low) · AI thread maintained throughout`,
+              `Sarah has everything — no re-capture needed`,
+            ],
+            outcome: { ok: true, verdict: '2030 Rich Handoff', impact: 'Sarah has full context + provisional refund confirmation ready.' }
+          };
+          setCurrentTrace(trace);
+          const contextCard = (
+            <div style={{ padding: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem', color: '#6366F1' }}>
+                <CheckCircle size={20} weight="bold" />
+                <span style={{ fontWeight: '600', fontSize: '1.1rem', letterSpacing: '-0.02em' }}>Unified handoff</span>
+              </div>
+              <TrustTimeline steps={[
+                { label: 'Context transferred to Sarah', detail: 'No re-capture needed — she has everything' },
+              ]} />
+              <div style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: '500', marginTop: '1.25rem', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Live Connection</div>
+              <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366F1, #A855F7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '700', fontSize: '1.1rem', flexShrink: 0, boxShadow: '0 4px 10px rgba(99, 102, 241, 0.2)' }}>S</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: '6px', fontWeight: '600' }}>Sarah · Fraud Specialist</div>
+                  <div style={{ background: '#F8FAFC', border: '1px solid rgba(0,0,0,0.03)', borderRadius: '0 16px 16px 16px', padding: '14px', fontSize: '0.92rem', color: '#1E293B', lineHeight: 1.5 }}>
+                    Hi Joe — I can see everything. The AI has already negotiated a provisional refund from Northline and your account is fully protected. Just say the word and I'll confirm the refund now. No forms, no hold music.
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+          addMessage('assistant',
+            `Connecting you to Sarah now — she already has your full case, the dispute evidence, AI negotiation status, and a provisional refund is agreed. She just needs your word to finalise it.`,
+            contextCard
+          );
+          setTimeout(() => {
+            const humanCard = (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#4C1D95', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', flexShrink: 0 }}>S</div>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: '#94A3B8', marginBottom: '4px' }}>Sarah · Fraud Specialist</div>
+                  <div style={{ background: '#F8FAFC', padding: '12px 14px', borderRadius: '4px 16px 16px 16px', border: '1px solid #E2E8F0', color: '#1E293B', fontSize: '0.9rem', lineHeight: 1.55 }}>
+                    Hi Joe — I can see everything. The AI has already negotiated a provisional refund from Northline and your account is fully protected. Just say the word and I'll confirm the refund now. No forms, no hold music, no re-explaining anything.
+                  </div>
+                </div>
+              </div>
+            );
+            setMessages(prev => [...prev, { id: Date.now(), role: 'system_human', card: humanCard }]);
+          }, 1800);
+          break;
+        }
+
         const trace = {
           confidence: 100,
           reasoning: futureMode ? [
@@ -1211,6 +1669,262 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
     }, 1200);
   };
 
+  // ── 2030: Siri-style ambient view ──────────────────────────────────────
+  if (is2030) {
+    const lastUserMsg  = [...messages].reverse().find(m => m.role === 'user');
+    const lastAiMsg    = [...messages].reverse().find(m => m.role === 'assistant');
+    const lastCard     = [...messages].reverse().find(m => m.card)?.card;
+    const currentQuery = input.trim() || lastUserMsg?.text || null;
+    const isActive     = isTyping || messages.length > 0 || !!input.trim();
+    const inConversation = messages.length > 0 || !!input.trim();
+
+    const WAVE_BARS = [
+      { color: '#34d399', delay: 0,    lo: 6,  hi: 30 },
+      { color: '#22d3ee', delay: 0.12, lo: 10, hi: 42 },
+      { color: '#818cf8', delay: 0.22, lo: 18, hi: 52 },
+      { color: '#a78bfa', delay: 0.06, lo: 24, hi: 48 },
+      { color: '#c084fc', delay: 0.16, lo: 16, hi: 44 },
+      { color: '#f472b6', delay: 0.26, lo: 10, hi: 36 },
+      { color: '#fb7185', delay: 0.09, lo: 6,  hi: 28 },
+    ];
+
+    return (
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        background: 'var(--a2030-bg)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Ambient orbs */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', top: '5%', left: '-5%', width: '400px', height: '400px', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+          <div style={{ position: 'absolute', bottom: '15%', right: '-15%', width: '380px', height: '380px', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(168,85,247,0.08) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+        </div>
+
+        {/* ── IDLE STATE ── */}
+        <AnimatePresence>
+          {!inConversation && !showProactive && (
+            <motion.div key="idle"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                padding: '0 1.25rem', gap: '14px', position: 'relative', zIndex: 1 }}
+            >
+              <div style={{ fontSize: '2rem', fontWeight: '600', color: 'var(--a2030-text)', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
+                Good morning, Joe.
+                <br />
+                <span style={{ opacity: 0.4, fontSize: '1.4rem', fontWeight: '400', letterSpacing: '-0.01em' }}>Your financial orchestrator is active.</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[
+                  { icon: '💰', text: '£1,840 available safely',      bg: 'rgba(16,185,129,0.11)', border: 'rgba(16,185,129,0.2)',   color: '#6ee7b7' },
+                  { icon: '⚡', text: '3 active automations running',  bg: 'rgba(99,102,241,0.1)',  border: 'rgba(99,102,241,0.2)',   color: '#a5b4fc' },
+                  { icon: '🔍', text: 'Northline Services flagged',    bg: 'rgba(239,68,68,0.09)', border: 'rgba(239,68,68,0.18)',   color: '#fca5a5' },
+                ].map((b, i) => (
+                  <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 + i * 0.09 }}
+                    style={{ background: b.bg, border: `1px solid ${b.border}`, borderRadius: '12px',
+                      padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}
+                  >
+                    <span style={{ fontSize: '1rem' }}>{b.icon}</span>
+                    <span style={{ fontSize: '0.82rem', color: b.color, fontWeight: '500' }}>{b.text}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── PROACTIVE NOTIFICATION ── */}
+        <AnimatePresence>
+          {showProactive && (
+            <motion.div key="proactive"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem 0', position: 'relative', zIndex: 1, scrollbarWidth: 'none' }}
+            >
+              <ProactiveNotification
+                profile={profile}
+                onAccept={handleProactiveAccept}
+                onDismiss={() => setShowProactive(false)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── CONVERSATION STATE ── */}
+        {inConversation && !showProactive && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+
+            {/* PINNED HEADER — query + AI response text, always visible */}
+            <div style={{ padding: '2rem 1.75rem 1rem', flexShrink: 0 }}>
+              {/* Current query — live input or last user message */}
+              <AnimatePresence mode="wait">
+                {currentQuery && (
+                  <motion.div key={currentQuery}
+                    initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                    style={{
+                      fontSize: '0.95rem', color: 'var(--a2030-subtext)',
+                      fontWeight: '500', marginBottom: '1.5rem', lineHeight: 1.4,
+                      display: 'flex', alignItems: 'flex-start', gap: '10px',
+                      opacity: 0.6
+                    }}
+                  >
+                    <span style={{ color: 'var(--a2030-accent)', fontWeight: '700', fontSize: '1.1rem', marginTop: '-2px' }}>›</span>
+                    {currentQuery}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+            {/* AI response text */}
+            <AnimatePresence mode="wait">
+              {lastAiMsg && (
+                <motion.div key={lastAiMsg.id}
+                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                  className="ambient-ai-text"
+                  style={{ fontSize: '1.45rem', fontWeight: '500', marginBottom: '32px' }}
+                >
+                  {lastAiMsg.text}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Thinking dots */}
+            {isTyping && !lastCard && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                style={{ display: 'flex', gap: '5px', alignItems: 'center', marginBottom: '16px' }}
+              >
+                {[0, 1, 2].map(i => (
+                  <motion.div key={i}
+                    style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(0,0,0,0.1)' }}
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.15 }}
+                  />
+                ))}
+              </motion.div>
+            )}
+            </div>
+
+            {/* SCROLLABLE CARD AREA */}
+            {lastCard ? (
+              <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '0 1.25rem 1rem' }}>
+                <AnimatePresence mode="wait">
+                  <motion.div key={messages.length}
+                    initial={{ opacity: 0, scale: 0.96, y: 12 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.65)',
+                      backdropFilter: 'blur(24px)',
+                      WebkitBackdropFilter: 'blur(24px)',
+                      borderRadius: '24px',
+                      overflow: 'hidden',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.04)',
+                      border: '1px solid var(--a2030-border)',
+                    }}>
+                    {lastCard}
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* Execution chain — always shown after any completed action */}
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4, duration: 0.4 }}
+                  style={{ marginTop: '12px', padding: '10px 14px',
+                    background: 'rgba(0,0,0,0.04)',
+                    borderRadius: '14px', border: '1px solid rgba(0,0,0,0.07)' }}
+                >
+                  <div style={{ fontSize: '0.58rem', fontWeight: '700', color: '#9CA3AF',
+                    textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '7px' }}>
+                    What just happened
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0', flexWrap: 'wrap' }}>
+                    {[
+                      { label: 'AI decision', dot: '#6366F1' },
+                      { label: 'Your approval', dot: '#8B5CF6' },
+                      { label: 'Barclays executed', dot: '#0369A1' },
+                      { label: 'Visa network', dot: '#0891B2' },
+                      { label: 'Fraud monitoring', dot: '#059669' },
+                    ].map((step, i, arr) => (
+                      <React.Fragment key={i}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: step.dot, flexShrink: 0 }} />
+                          <span style={{ fontSize: '0.67rem', color: '#374151', fontWeight: '500' }}>{step.label}</span>
+                        </div>
+                        {i < arr.length - 1 && (
+                          <span style={{ color: '#D1D5DB', fontSize: '0.7rem', margin: '0 4px' }}>→</span>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </motion.div>
+
+                <div ref={endOfMessagesRef} />
+              </div>
+            ) : (
+              <div style={{ flex: 1 }} ref={endOfMessagesRef} />
+            )}
+          </div>
+        )}
+
+        {/* ── WAVEFORM + INPUT (fixed bottom) ── */}
+        <div style={{ padding: '2px 1.25rem 0.875rem', position: 'relative', zIndex: 1,
+          display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+
+          {/* Siri waveform */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '42px', gap: '3.5px' }}>
+            {WAVE_BARS.map((bar, i) => (
+              <motion.div key={i}
+                style={{ width: '4px', borderRadius: '4px', background: bar.color }}
+                animate={isActive
+                  ? { height: [bar.lo, bar.hi, bar.lo], opacity: [0.6, 1, 0.6] }
+                  : { height: bar.lo, opacity: 0.22 }
+                }
+                transition={isActive
+                  ? { repeat: Infinity, duration: 1.0, delay: bar.delay, ease: 'easeInOut' }
+                  : { duration: 0.6 }
+                }
+              />
+            ))}
+          </div>
+
+          {/* Input */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            background: 'white',
+            border: '1px solid var(--a2030-border)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+            borderRadius: '22px', padding: '10px 14px',
+          }}>
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && processInput()}
+              placeholder="Ask your financial AI…"
+              style={{ flex: 1, border: 'none', background: 'transparent',
+                fontSize: '0.92rem', color: 'var(--a2030-text)', outline: 'none' }}
+            />
+            <button
+              onClick={() => processInput()}
+              style={{
+                width: '34px', height: '34px', borderRadius: '50%', border: 'none', flexShrink: 0,
+                background: input.trim()
+                  ? 'linear-gradient(135deg, #6366F1, #A855F7)'
+                  : 'rgba(0,0,0,0.05)',
+                cursor: input.trim() ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background 0.3s',
+              }}
+            >
+              <Send size={14} color={input.trim() ? 'white' : '#94A3B8'} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // ── end 2030 view ────────────────────────────────────────────────────
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'hidden', position: 'relative' }}>
 
@@ -1243,7 +1957,11 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
       </div>
 
       {/* Input bar */}
-      <div style={{ padding: '0.75rem 1rem 1rem', borderTop: '1px solid var(--divider)', background: 'var(--bg-secondary)' }}>
+      <div style={{
+        padding: '0.75rem 1rem 1rem',
+        borderTop: '1px solid var(--divider)',
+        background: 'var(--bg-secondary)',
+      }}>
         <AnimatePresence>
           {showFutureBanner && (
             <motion.div
@@ -1253,7 +1971,11 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
               transition={{ duration: 0.4 }}
               style={{ overflow: 'hidden' }}
             >
-              <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: '600', textAlign: 'center', letterSpacing: '0.03em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <div style={{
+                fontSize: '0.7rem', fontWeight: '600', textAlign: 'center',
+                letterSpacing: '0.03em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                color: '#7c3aed',
+              }}>
                 <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#7c3aed', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
                 On-device SLM · Cloud reasoning · Continuous biometric session · Zero friction
               </div>
@@ -1270,7 +1992,12 @@ export const ConversationPanel = ({ futureMode, startEventName = 'START_AUTOPILO
           />
           <button
             onClick={() => processInput()}
-            style={{ width: '40px', height: '40px', borderRadius: '50%', background: input.trim() ? 'var(--brand-blue)' : '#ddd', border: 'none', cursor: input.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
+            style={{
+              width: '40px', height: '40px', borderRadius: '50%',
+              background: input.trim() ? 'var(--brand-blue)' : '#ddd',
+              border: 'none', cursor: input.trim() ? 'pointer' : 'default',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s',
+            }}
           >
             <Send size={16} color="white" />
           </button>

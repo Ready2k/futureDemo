@@ -92,6 +92,7 @@ The demo's credibility rests on three UI patterns — treat these as first-class
 | `src/components/HomeScreenIntro.jsx` | Timed intro animation (iPhone home screen, Apple Intelligence glow) |
 | `src/components/BiometricAuthScreen.jsx` | Face ID animation sequence |
 | `src/components/ReasoningDrawer.jsx` | Expandable AI reasoning panel — large file (~59KB), contains all trace display logic |
+| `src/components/ComparisonAdvisor.jsx` | "Today vs 2028" side-panel — syncs to `demoPhase` and shows per-scene contrast bullets; driven by its own internal `SCENES` array parallel to `ConversationPanel.jsx`'s |
 | `src/components/PlatformOverlay.jsx` | Architecture diagram + business value reveal (final scene) |
 | `src/services/intentEngine.js` | Regex-based intent + parameter extraction |
 | `src/services/policyEngine.js` | Transfer policy rules (min balance £1000, confirmation threshold £500) |
@@ -100,6 +101,10 @@ The demo's credibility rests on three UI patterns — treat these as first-class
 ### Styling
 
 All theme variables are CSS custom properties in `src/index.css`. Light mode is the default; `[data-theme="dark"]` on the root switches the full palette. Key brand colours: `--brand-blue: #00395D`, `--brand-cyan: #00AEEF`. The iOS device frame (390×844px) is a pure-CSS wrapper with a Dynamic Island pseudo-element. Animations use Framer Motion throughout — prefer it over CSS transitions for interactive elements.
+
+### Narration Audio
+
+Pre-recorded MP3 files live in `public/narration/` (`scene0.mp3`–`scene6.mp3`). The app tries to load each file at scene start; if absent it falls back to the browser's Web Speech API automatically. To regenerate audio, use the scripts in `public/narration/README.md` (recommended: Amazon Polly voice `Brian`, en-GB, Neural engine).
 
 ### ESLint Notes
 
